@@ -17,45 +17,46 @@ import '../features/review/screens/review_form_screen.dart';
 import '../features/admin/screens/admin_reports_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authNotifier = ref.watch(authProvider.notifier);
-  final authState = ref.watch(authProvider);
-
   return GoRouter(
     initialLocation: '/login',
     refreshListenable: _RouterRefreshStream(ref),
     redirect: (context, state) {
-      // Skip redirect during initial loading (when state is loading AND no user data)
+      final authState = ref.read(authProvider);
+      
+      // Always allow initial loading
       if (authState.isLoading && authState.valueOrNull == null) {
+        debugPrint('[Router] Skipping redirect - initial loading');
         return null;
       }
 
       final user = authState.valueOrNull;
       final isLoggedIn = user != null;
       final location = state.matchedLocation;
-      final isAuthRoute = location.startsWith('/login') ||
-          location.startsWith('/register') ||
+      final isAuthRoute = location == '/login' ||
+          location == '/register' ||
           location.startsWith('/verify');
 
-      // Debug logging
-      debugPrint('[Router] location: $location');
+      debugPrint('[Router] ━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      debugPrint('[Router] Location: $location');
       debugPrint('[Router] isLoggedIn: $isLoggedIn');
-      debugPrint('[Router] user: ${user?.email} (${user?.role})');
+      debugPrint('[Router] User: ${user?.email ?? "null"}');
+      debugPrint('[Router] EmailVerified: ${user?.emailVerified ?? "n/a"}');
       debugPrint('[Router] isAuthRoute: $isAuthRoute');
 
-      // Not logged in → force to auth pages
+      // Not logged in + trying to access protected route → login
       if (!isLoggedIn && !isAuthRoute) {
-        debugPrint('[Router] ➜ Redirect to /login (not authenticated)');
+        debugPrint('[Router] ➜ REDIRECT: /login (not authenticated)');
         return '/login';
       }
 
-      // Logged in but on auth page → redirect to appropriate home
+      // Logged in + on auth route → home
       if (isLoggedIn && isAuthRoute) {
         final destination = user.isMerchant ? '/selling' : '/radar';
-        debugPrint('[Router] ➜ Redirect to $destination (authenticated)');
+        debugPrint('[Router] ➜ REDIRECT: $destination (authenticated)');
         return destination;
       }
 
-      debugPrint('[Router] ➜ No redirect needed');
+      debugPrint('[Router] ➜ NO REDIRECT (allow navigation)');
       return null;
     },
     routes: [

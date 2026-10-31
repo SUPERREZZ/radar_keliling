@@ -12,21 +12,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Ekstensi UUID & spasial (wajib untuk radar)
-        DB::statement('CREATE EXTENSION IF NOT EXISTS pgcrypto');
-        DB::statement('CREATE EXTENSION IF NOT EXISTS postgis');
-
         Schema::create('users', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->string('email', 254)->unique();
             $table->string('password');
-            $table->string('role', 10); // buyer | merchant | admin
+            $table->enum('role', ['buyer', 'merchant', 'admin']); // MySQL ENUM instead of CHECK
             $table->boolean('email_verified')->default(false);
-            $table->timestampsTz();
-            $table->softDeletesTz();
+            $table->timestamps(); // MySQL uses timestamps() not timestampsTz()
+            $table->softDeletes();
         });
-
-        DB::statement("ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('buyer', 'merchant', 'admin'))");
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

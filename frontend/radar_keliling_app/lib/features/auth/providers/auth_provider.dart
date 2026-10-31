@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
@@ -16,15 +17,21 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
   final AuthService _service;
 
   Future<void> _init() async {
+    // Keep loading state while checking session
     final hasSession = await SecureStorage.hasSession();
     if (!hasSession) {
       state = const AsyncValue.data(null);
+      debugPrint('[AuthProvider] _init: No session found');
       return;
     }
+    
     try {
+      debugPrint('[AuthProvider] _init: Session found, fetching user...');
       final user = await _service.getMe();
       state = AsyncValue.data(user);
-    } catch (_) {
+      debugPrint('[AuthProvider] _init: User loaded: ${user.email} (${user.role})');
+    } catch (e) {
+      debugPrint('[AuthProvider] _init: Failed to fetch user, clearing session. Error: $e');
       await SecureStorage.clearSession();
       state = const AsyncValue.data(null);
     }
