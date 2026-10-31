@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Models\DemandLog;
 use App\Services\Geohash;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,12 +27,59 @@ class RadarController extends Controller
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'radius' => ['nullable', 'integer', 'min:100', 'max:3000'],
+            'search' => ['nullable', 'string', 'max:100'],
+            'sort' => ['nullable', 'string', 'in:distance,rating,name'],
         ]);
 
         $latitude = (float) $validated['latitude'];
         $longitude = (float) $validated['longitude'];
         $radius = min((int) ($validated['radius'] ?? config('radar.default_radius_m', 3000)), 3000);
         $staleSeconds = (int) config('radar.stale_seconds', 30);
+        $search = isset($validated['search']) ? trim((string) $validated['search']) : null;
+        $sort = strtolower((string) ($validated['sort'] ?? 'distance'));
+
+        // Rekam riwayat pencarian pembeli untuk analitik spatial heatmap
+        try {
+            DemandLog::record($latitude, $longitude, $request->query('category') ?? $search);
+        } catch (\Throwable) {
+            // Abaikan jika pencatatan analitik gagal agar request utama tidak terganggu
+        }
+
+        $bindings = [
+            $longitude,
+            $latitude,
+            $staleSeconds,
+            $longitude,
+            $latitude,
+            $radius,
+        ];
+
+        $searchClause = '';
+        if ($search !== null && $search !== '') {
+            $searchClause = "
+                AND (
+                    mp.business_name ILIKE ?
+                    OR mp.description ILIKE ?
+                    OR EXISTS (
+                        SELECT 1 FROM menus m
+                        WHERE m.merchant_id = mp.id
+                          AND m.is_available = TRUE
+                          AND (m.name ILIKE ? OR m.description ILIKE ?)
+                    )
+                )
+            ";
+            $like = "%{$search}%";
+            $bindings[] = $like;
+            $bindings[] = $like;
+            $bindings[] = $like;
+            $bindings[] = $like;
+        }
+
+        $orderByClause = match ($sort) {
+            'rating' => 'average_rating DESC, distance_m ASC',
+            'name' => 'mp.business_name ASC, distance_m ASC',
+            default => 'distance_m ASC',
+        };
 
         // Query geospasial PostGIS
         $results = DB::select("
@@ -46,7 +94,12 @@ class RadarController extends Controller
                 )::numeric, 1) AS distance_m,
                 ml.gps_accuracy_m,
                 ml.last_updated_at,
-                mp.is_selling
+                mp.is_selling,
+                COALESCE((
+                    SELECT ROUND(AVG(r.rating)::numeric, 1)
+                    FROM reviews r
+                    WHERE r.merchant_id = mp.id AND r.moderation_status = 'visible'
+                ), 0.0) AS average_rating
             FROM merchant_profiles mp
             INNER JOIN merchant_locations ml ON ml.merchant_id = mp.id
             WHERE mp.is_selling = TRUE
@@ -56,15 +109,9 @@ class RadarController extends Controller
                     ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography,
                     ?
               )
-            ORDER BY distance_m ASC
-        ", [
-            $longitude,
-            $latitude,
-            $staleSeconds,
-            $longitude,
-            $latitude,
-            $radius,
-        ]);
+              {$searchClause}
+            ORDER BY {$orderByClause}
+        ", $bindings);
 
         $merchants = array_map(function ($row) {
             return [
@@ -76,6 +123,7 @@ class RadarController extends Controller
                 'gps_accuracy_m' => (float) $row->gps_accuracy_m,
                 'last_updated_at' => $row->last_updated_at,
                 'is_selling' => (bool) $row->is_selling,
+                'average_rating' => (float) $row->average_rating,
             ];
         }, $results);
 

@@ -111,5 +111,40 @@ class MerchantLocationTest extends TestCase
         $response->assertStatus(403)
             ->assertJsonPath('error.code', 'FORBIDDEN');
     }
+
+    public function test_location_update_calculates_5m_movement_accurately(): void
+    {
+        [, $token] = $this->createMerchant();
+
+        // Titik awal
+        $initial = $this->withToken($token)->putJson('/api/v1/merchant/location', [
+            'latitude' => -7.260000,
+            'longitude' => 112.750000,
+            'accuracy_m' => 5.0,
+        ]);
+        $initial->assertOk()
+            ->assertJsonPath('data.distance_moved_m', null)
+            ->assertJsonPath('data.has_moved_5m', true);
+
+        // Bergeser hanya ~2 meter (di bawah threshold 5 meter)
+        $smallMove = $this->withToken($token)->putJson('/api/v1/merchant/location', [
+            'latitude' => -7.260018,
+            'longitude' => 112.750000,
+            'accuracy_m' => 5.0,
+        ]);
+        $smallMove->assertOk();
+        $this->assertLessThan(5.0, (float) $smallMove->json('data.distance_moved_m'));
+        $this->assertFalse($smallMove->json('data.has_moved_5m'));
+
+        // Bergeser ~15 meter (melebihi threshold 5 meter)
+        $bigMove = $this->withToken($token)->putJson('/api/v1/merchant/location', [
+            'latitude' => -7.260150,
+            'longitude' => 112.750000,
+            'accuracy_m' => 5.0,
+        ]);
+        $bigMove->assertOk();
+        $this->assertGreaterThanOrEqual(5.0, (float) $bigMove->json('data.distance_moved_m'));
+        $this->assertTrue($bigMove->json('data.has_moved_5m'));
+    }
 }
 

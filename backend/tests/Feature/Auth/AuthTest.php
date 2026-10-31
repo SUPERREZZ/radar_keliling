@@ -87,5 +87,43 @@ class AuthTest extends TestCase
             ->assertStatus(401)
             ->assertJsonPath('error.code', 'UNAUTHENTICATED');
     }
+
+    public function test_login_fails_when_user_does_not_exist(): void
+    {
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'tidakada@example.com',
+            'password' => 'password123',
+        ])->assertStatus(401)
+            ->assertJsonPath('error.code', 'INVALID_CREDENTIALS');
+    }
+
+    public function test_logged_out_token_is_rejected_on_subsequent_requests(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('mobile')->plainTextToken;
+
+        // Logout
+        $this->withToken($token)->postJson('/api/v1/auth/logout')->assertNoContent();
+
+        // Reset auth state in test application container
+        $this->app['auth']->forgetGuards();
+
+        // Coba akses /me dengan token yang telah di-revoke
+        $this->withToken($token)->getJson('/api/v1/auth/me')
+            ->assertStatus(401)
+            ->assertJsonPath('error.code', 'UNAUTHENTICATED');
+    }
+
+    public function test_user_can_delete_own_account(): void
+    {
+        $user = User::factory()->create(['email' => 'hapus_akun@example.com']);
+        $token = $user->createToken('mobile')->plainTextToken;
+
+        $this->withToken($token)->deleteJson('/api/v1/account')
+            ->assertNoContent();
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
 }
 

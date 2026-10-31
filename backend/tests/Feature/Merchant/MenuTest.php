@@ -185,5 +185,147 @@ class MenuTest extends TestCase
         $response = $this->get('/docs/api');
         $response->assertOk();
     }
+
+    public function test_merchant_cannot_modify_or_delete_other_merchants_menu(): void
+    {
+        [, , $profile1] = $this->createMerchantWithProfile();
+        [, $token2] = $this->createMerchantWithProfile();
+
+        $menu = Menu::create([
+            'merchant_id' => $profile1->id,
+            'name' => 'Menu Merchant 1',
+            'price' => 10000,
+        ]);
+
+        // Merchant 2 mencoba update menu Merchant 1
+        $this->withToken($token2)->putJson("/api/v1/merchant/menus/{$menu->id}", [
+            'name' => 'Dibajak',
+            'price' => 99999,
+        ])->assertStatus(404);
+
+        // Merchant 2 mencoba hapus menu Merchant 1
+        $this->withToken($token2)->deleteJson("/api/v1/merchant/menus/{$menu->id}")
+            ->assertStatus(404);
+
+        $this->assertDatabaseHas('menus', ['id' => $menu->id, 'name' => 'Menu Merchant 1']);
+    }
+
+    public function test_merchant_cannot_delete_other_merchants_menu_photo(): void
+    {
+        [, , $profile1] = $this->createMerchantWithProfile();
+        [, $token2] = $this->createMerchantWithProfile();
+
+        $menu = Menu::create([
+            'merchant_id' => $profile1->id,
+            'name' => 'Menu Foto',
+            'price' => 10000,
+        ]);
+
+        $photo = $menu->photos()->create(['storage_path' => 'menus/test.jpg']);
+
+        $this->withToken($token2)->deleteJson("/api/v1/merchant/menu-photos/{$photo->id}")
+            ->assertStatus(404);
+
+        $this->assertDatabaseHas('menu_photos', ['id' => $photo->id]);
+    }
+
+    public function test_menu_photo_upload_validates_image_file(): void
+    {
+        Storage::fake('public');
+        [, $token, $profile] = $this->createMerchantWithProfile();
+
+        $menu = Menu::create([
+            'merchant_id' => $profile->id,
+            'name' => 'Menu Uji',
+            'price' => 10000,
+        ]);
+
+        // File teks biasa bukan gambar
+        $fakeFile = UploadedFile::fake()->create('document.txt', 50, 'text/plain');
+
+        $response = $this->withToken($token)->postJson("/api/v1/merchant/menus/{$menu->id}/photos", [
+            'photo' => $fakeFile,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_merchant_can_sort_and_filter_menus(): void
+    {
+        [, $token, $profile] = $this->createMerchantWithProfile();
+
+        Menu::create([
+            'merchant_id' => $profile->id,
+            'name' => 'Es Teh Manis',
+            'description' => 'Segar dingin',
+            'price' => 5000,
+            'is_available' => true,
+        ]);
+
+        Menu::create([
+            'merchant_id' => $profile->id,
+            'name' => 'Bakso Urat Spesial',
+            'description' => 'Daging sapi asli',
+            'price' => 20000,
+            'is_available' => true,
+        ]);
+
+        Menu::create([
+            'merchant_id' => $profile->id,
+            'name' => 'Sate Kambing Muda',
+            'description' => 'Bumbu kecap pedas',
+            'price' => 35000,
+            'is_available' => false,
+        ]);
+
+        // 1. Sort price_asc
+        $priceAsc = $this->withToken($token)->getJson('/api/v1/merchant/menus?sort=price_asc');
+        $priceAsc->assertOk()
+            ->assertJsonPath('data.0.name', 'Es Teh Manis')
+            ->assertJsonPath('data.1.name', 'Bakso Urat Spesial')
+            ->assertJsonPath('data.2.name', 'Sate Kambing Muda');
+
+        // 2. Sort price_desc
+        $priceDesc = $this->withToken($token)->getJson('/api/v1/merchant/menus?sort=price_desc');
+        $priceDesc->assertOk()
+            ->assertJsonPath('data.0.name', 'Sate Kambing Muda')
+            ->assertJsonPath('data.2.name', 'Es Teh Manis');
+
+        // 3. Sort name_asc
+        $nameAsc = $this->withToken($token)->getJson('/api/v1/merchant/menus?sort=name_asc');
+        $nameAsc->assertOk()
+            ->assertJsonPath('data.0.name', 'Bakso Urat Spesial')
+            ->assertJsonPath('data.1.name', 'Es Teh Manis')
+            ->assertJsonPath('data.2.name', 'Sate Kambing Muda');
+
+        // 4. Filter is_available=true
+        $availRes = $this->withToken($token)->getJson('/api/v1/merchant/menus?is_available=true');
+        $availRes->assertOk()->assertJsonCount(2, 'data');
+
+        // 5. Search by keyword
+        $searchRes = $this->withToken($token)->getJson('/api/v1/merchant/menus?search=bakso');
+        $searchRes->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Bakso Urat Spesial');
+    }
+
+    public function test_merchant_can_toggle_menu_availability(): void
+    {
+        [, $token, $profile] = $this->createMerchantWithProfile();
+
+        $menu = Menu::create([
+            'merchant_id' => $profile->id,
+            'name' => 'Mie Ayam Jamur',
+            'price' => 14000,
+            'is_available' => true,
+        ]);
+
+        $res1 = $this->withToken($token)->patchJson("/api/v1/merchant/menus/{$menu->id}/availability");
+        $res1->assertOk()->assertJsonPath('data.is_available', false);
+
+        $res2 = $this->withToken($token)->patchJson("/api/v1/merchant/menus/{$menu->id}/availability");
+        $res2->assertOk()->assertJsonPath('data.is_available', true);
+    }
 }
 

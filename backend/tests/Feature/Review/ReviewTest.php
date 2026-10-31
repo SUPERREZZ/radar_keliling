@@ -382,4 +382,70 @@ class ReviewTest extends TestCase
             ->assertJsonPath('data.total_reviews', 0)
             ->assertJsonPath('data.average_rating', 0);
     }
+
+    public function test_merchant_cannot_report_review(): void
+    {
+        [$merchantUser, $profile] = $this->createMerchant();
+        $buyer = $this->createBuyer('buyer_rep@example.com');
+
+        $call = Call::create([
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $profile->id,
+            'status' => Call::STATUS_ACCEPTED,
+            'created_at' => now(),
+        ]);
+
+        $review = Review::create([
+            'call_id' => $call->id,
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $profile->id,
+            'rating' => 2,
+            'review_text' => 'Kurang asin',
+            'moderation_status' => 'visible',
+        ]);
+
+        $this->actingAs($merchantUser)->postJson("/api/v1/reviews/{$review->id}/reports", [
+            'reason' => 'Saya tidak suka ulasan ini',
+        ])->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_admin_can_list_filter_and_unhide_reviews(): void
+    {
+        [, $profile] = $this->createMerchant();
+        $buyer = $this->createBuyer('buyer_unhide@example.com');
+        $admin = $this->createAdmin('admin_unhide@example.com');
+
+        $call = Call::create([
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $profile->id,
+            'status' => Call::STATUS_COMPLETED,
+            'created_at' => now(),
+        ]);
+
+        $review = Review::create([
+            'call_id' => $call->id,
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $profile->id,
+            'rating' => 5,
+            'review_text' => 'Enak banget',
+            'moderation_status' => 'hidden',
+        ]);
+
+        // Filter status=hidden
+        $listRes = $this->actingAs($admin)->getJson('/api/v1/admin/reviews?status=hidden');
+        $listRes->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $review->id);
+
+        // Unhide review
+        $unhideRes = $this->actingAs($admin)->patchJson("/api/v1/admin/reviews/{$review->id}/unhide");
+        $unhideRes->assertOk()
+            ->assertJsonPath('data.moderation_status', 'visible');
+
+        $this->assertDatabaseHas('reviews', [
+            'id' => $review->id,
+            'moderation_status' => 'visible',
+        ]);
+    }
 }

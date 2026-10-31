@@ -27,6 +27,7 @@ class ReviewController extends Controller
         }
 
         $allowedStatuses = [
+            'accept',
             Call::STATUS_ACCEPTED,
             Call::STATUS_COMPLETED,
             'answered',
@@ -63,6 +64,47 @@ class ReviewController extends Controller
         ], 201);
     }
 
+    public function adminIndex(Request $request): JsonResponse
+    {
+        $query = Review::query();
+
+        if ($request->filled('status') || $request->filled('moderation_status')) {
+            $status = strtolower((string) ($request->query('status') ?? $request->query('moderation_status')));
+            $query->where('moderation_status', $status);
+        }
+
+        $sort = strtolower((string) ($request->query('sort') ?? 'latest'));
+        switch ($sort) {
+            case 'oldest':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'rating_asc':
+                $query->orderBy('rating', 'asc')->orderBy('created_at', 'desc');
+                break;
+            case 'rating_desc':
+                $query->orderBy('rating', 'desc')->orderBy('created_at', 'desc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        $reviews = $query->get();
+
+        return response()->json([
+            'data' => $reviews->map(fn (Review $r) => [
+                'id' => $r->id,
+                'call_id' => $r->call_id,
+                'merchant_id' => $r->merchant_id,
+                'buyer_id' => $r->buyer_id,
+                'rating' => $r->rating,
+                'review_text' => $r->review_text,
+                'moderation_status' => $r->moderation_status,
+                'created_at' => $r->created_at?->toIso8601String(),
+            ]),
+        ]);
+    }
+
     public function hide(string $id): JsonResponse
     {
         $review = Review::findOrFail($id);
@@ -80,5 +122,18 @@ class ReviewController extends Controller
             ],
         ]);
     }
-}
 
+    public function unhide(string $id): JsonResponse
+    {
+        $review = Review::findOrFail($id);
+
+        $review->update(['moderation_status' => Review::STATUS_VISIBLE]);
+
+        return response()->json([
+            'data' => [
+                'id' => $review->id,
+                'moderation_status' => Review::STATUS_VISIBLE,
+            ],
+        ]);
+    }
+}
