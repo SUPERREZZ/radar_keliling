@@ -3,6 +3,10 @@
 class AppConfig {
   AppConfig._();
 
+  // ── DEMO MODE ─────────────────────────────────────────────
+  /// Set true untuk testing tanpa backend (gunakan dummy data)
+  static const bool isDemoMode = true;
+
   // ── REST API ──────────────────────────────────────────────
   /// Base URL tanpa trailing slash.
   static const String baseUrl = 'https://YOUR_DOMAIN/api/v1';
