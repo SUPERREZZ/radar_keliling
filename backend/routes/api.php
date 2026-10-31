@@ -20,6 +20,16 @@ Route::prefix('v1')->group(function () {
         Route::middleware('auth:sanctum')->group(function () {
             Route::get('/me', [AuthController::class, 'me']);
             Route::post('/logout', [AuthController::class, 'logout']);
+
+            // FCM device tokens
+            Route::post('/fcm-token', [\App\Http\Controllers\Api\V1\FcmController::class, 'storeToken']);
+            Route::delete('/fcm-token', [\App\Http\Controllers\Api\V1\FcmController::class, 'deleteToken']);
         });
+    });
+
+    // Alias routes outside /auth prefix for /fcm/token
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'storeToken']);
+        Route::delete('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'deleteToken']);
     });
 });

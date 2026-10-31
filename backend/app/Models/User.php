@@ -57,4 +57,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(EmailVerificationToken::class);
     }
+
+    public function fcmTokens()
+    {
+        return $this->hasMany(FcmToken::class);
+    }
 }
