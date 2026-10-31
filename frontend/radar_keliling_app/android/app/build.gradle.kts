@@ -43,14 +43,11 @@ android {
         }
     }
 
-    // Split APK per ABI — keeps release APK small for demo/testing.
-    // Remove splits to produce a universal APK for Play Store.
+    // ABI splits hanya aktif saat build release manual (flutter build apk --release).
+    // Dinonaktifkan agar flutter run (debug) tidak konflik dengan ndk abiFilters Flutter.
     splits {
         abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = false
+            isEnable = false
         }
     }
 }
