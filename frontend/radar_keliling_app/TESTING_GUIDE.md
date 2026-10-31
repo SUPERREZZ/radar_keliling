@@ -1,244 +1,336 @@
-# 🧪 Panduan Testing Manual Radar Keliling Frontend
+# 🧪 Testing Guide - Radar Keliling
 
-## Status Saat Ini
+Panduan lengkap untuk testing manual aplikasi Radar Keliling dengan backend production.
 
-Frontend **sudah lengkap dan siap** dari sisi code, tetapi **membutuhkan backend** untuk bisa jalan penuh. Saat ini app sudah berjalan di Chrome tapi stuck di login screen karena belum ada backend API.
+## 📋 Prerequisites
 
----
+- Flutter SDK installed
+- Chrome/Edge browser (untuk web testing)
+- Backend API: `http://backend.jh-beon.cloud/api/v1`
+- API Docs: `http://backend.jh-beon.cloud/docs`
 
-## 🎯 Apa Yang Bisa Ditest Sekarang
+## 🚀 Quick Start
 
-### ✅ Yang Bisa Dilihat Langsung (Tanpa Backend):
-
-1. **UI Components & Styling**
-   - Semua tampilan sudah di-render dengan theme yang consistent
-   - Button dengan animasi scale saat ditekan
-   - Input fields dengan validation
-   - Snackbar notifications
-   - Loading states dengan CircularProgressIndicator
-
-2. **Navigation Structure**
-   - GoRouter setup sudah lengkap
-   - Route protection berdasarkan auth state
-   - Deep linking ready
-
-3. **Layout & Responsiveness**
-   - Semua screen sudah responsive
-   - Scroll behavior smooth
-   - Bottom sheets dan dialogs
-
----
-
-## 📱 Cara Testing di Browser (Chrome)
-
-### Yang Sudah Berhasil:
 ```bash
-flutter run -d chrome
+# Install dependencies
+flutter pub get
+
+# Run on Chrome
+flutter run -d chrome --web-port 8080
+
+# Or run with hot reload
+flutter run -d chrome --web-port 8080 --web-renderer html
 ```
 
-App sudah berjalan di **http://localhost:[port]** dan akan muncul **Login Screen**.
+## 📱 Test Scenarios
 
-### Yang Bisa Kamu Lihat:
+### 1️⃣ Testing sebagai BUYER (Pelanggan)
 
-#### 1. **Login Screen** ✅
-- Email & password input fields
-- "Masuk" button dengan animation
-- "Daftar akun baru" link
-- Clean layout dengan logo/title
+#### A. Registration & Verification
+1. **Register akun buyer**
+   - Buka aplikasi → Tap "Daftar"
+   - Pilih role: "Pembeli"
+   - Isi email & password (min 8 char)
+   - Submit → Cek response "Silakan verifikasi email"
 
-#### 2. **Register Screen** (navigasi dari login)
-- Role selector (Pembeli/Pedagang) dengan radio buttons
-- Email & password fields  
-- Konfirmasi password
-- "Daftar" button
-- Sudah punya akun" link
+2. **Verify email**
+   - Cek inbox email (atau gunakan token dari backend log)
+   - Masukkan token verifikasi
+   - Submit → Login otomatis
 
-#### 3. **Verify Email Screen** (setelah register)
-- Email confirmation message
-- Resend verification button
-- Timer countdown (jika ada)
+3. **Login**
+   - Email & password yang sudah diverifikasi
+   - Success → Navigate ke Radar screen
 
-### Yang TIDAK Bisa Ditest (Perlu Backend):
-- ❌ Actual login/register (submit form akan error karena API tidak ada)
-- ❌ Navigate ke screens lain (butuh auth token)
-- ❌ Load data merchants/menu
-- ❌ GPS tracking
-- ❌ WebSocket notifications
+#### B. Radar - Cari Pedagang
+1. **Izinkan GPS**
+   - Browser akan minta permission lokasi → Allow
+   - Map akan center ke lokasi Anda
 
----
+2. **Lihat pedagang aktif**
+   - Marker merah dengan pulse animation = pedagang yang sedang berjualan
+   - Radius radar: 3km dari lokasi Anda
+   - Real-time update setiap 10 detik
 
-## 🔧 Cara Testing Lebih Lengkap (Setelah Backend Ready)
+3. **Tap marker pedagang**
+   - Bottom sheet muncul dengan info:
+     - Nama bisnis
+     - Deskripsi
+     - Rating rata-rata
+     - Jarak dari Anda
+     - Menu items
+   - Tombol "Panggil Pedagang"
 
-### Setup Yang Dibutuhkan:
+#### C. Call Merchant - Panggil Pedagang
+1. **Inisiasi panggilan**
+   - Tap "Panggil Pedagang"
+   - Dialog consent muncul: "Bagikan lokasi Anda?"
+   - Pilih "Ya, Bagikan" atau "Tidak"
 
-1. **Update AppConfig**
-   Edit `lib/config/app_config.dart`:
-   ```dart
-   static const bool isDemoMode = false; // Change to false
-   static const String baseUrl = 'https://staging-api.url/api/v1';
-   static const String reverbAppKey = 'actual-reverb-key';
-   ```
+2. **Tracking status**
+   - Status call: `pending` → `accepted` → `completed`
+   - Jika share location: pedagang bisa lihat lokasi Anda (expired after 15 menit)
+   - Real-time update via WebSocket
 
-2. **Run dengan Backend**
-   ```bash
-   flutter run -d chrome
-   ```
+3. **Selesai transaksi**
+   - Status berubah jadi `completed`
+   - Navigate ke Review form
 
-3. **Test Flow Lengkap:**
+#### D. Review - Beri Ulasan
+1. **Submit review**
+   - Rating: 1-5 bintang
+   - Text ulasan (optional)
+   - Submit → Success message
 
-   **A. Buyer Flow:**
-   - Register as Pembeli
-   - Verify email
-   - Login
-   - Open Radar → see nearby merchants
-   - Tap merchant → see profile & menu
-   - Call merchant → dialog consent location
-   - Submit call → wait for merchant response
-   - After transaction → write review with star rating
-
-   **B. Merchant Flow:**
-   - Register as Pedagang
-   - Verify email
-   - Login
-   - Setup profile (business name, type, description)
-   - Add menu items with photos & prices
-   - Start Selling → GPS broadcast begins
-   - Receive incoming calls from buyers
-   - Accept/decline calls
-   - Stop selling
-
-   **C. Admin Flow:**
-   - Login as admin
-   - View reported reviews
-   - Hide inappropriate reviews
-   - View all merchants
-   - Verify pending merchants
+2. **View reviews**
+   - Lihat ulasan yang sudah dikirim di history
 
 ---
 
-## 📸 Screenshots Tampilan (Yang Sudah Ada)
+### 2️⃣ Testing sebagai MERCHANT (Pedagang)
 
-Saat ini kamu bisa screenshot:
-1. ✅ Login Screen
-2. ✅ Register Screen dengan Role Selector
-3. ✅ Verify Email Screen
+#### A. Registration & Profile Setup
+1. **Register akun merchant**
+   - Daftar → Pilih role: "Pedagang"
+   - Email & password
+   - Verify email (sama seperti buyer)
 
-Yang belum bisa screenshot (butuh backend):
-- ❌ Radar/Map dengan merchant markers
-- ❌ Merchant profile & menu list
-- ❌ Selling dashboard
-- ❌ Call history & detail
-- ❌ Review form
-- ❌ Admin reports
+2. **Setup profil merchant**
+   - Setelah login pertama → Form profil muncul
+   - Isi:
+     - Nama bisnis (required, min 1 char)
+     - Deskripsi bisnis
+     - Upload foto profil (optional, max 2MB)
+   - Submit → Navigate ke Selling Dashboard
+
+3. **Tambah menu items**
+   - Tab "Menu"
+   - Tap "Tambah Menu"
+   - Isi:
+     - Nama item (required)
+     - Deskripsi
+     - Harga (format: Rp 15.000)
+     - Toggle ketersediaan
+     - Upload foto (max 5 foto per item)
+   - Save
+
+#### B. Selling - Berjualan
+1. **Start selling**
+   - Dashboard → Tap "Mulai Berjualan"
+   - GPS akan aktif
+   - Lokasi Anda dikirim ke server setiap 10 detik
+   - Status: `is_selling = true`
+   - Marker Anda muncul di radar buyer dalam radius 3km
+
+2. **Monitor incoming calls**
+   - Badge notifikasi muncul di tab "Panggilan"
+   - Tap untuk lihat list panggilan pending
+   - Real-time update via WebSocket
+
+3. **Accept call**
+   - Tap panggilan → Detail page
+   - Tap "Terima Panggilan"
+   - Status: `pending` → `accepted`
+   - Jika buyer share location: lihat map dengan buyer location
+
+4. **Complete transaction**
+   - Setelah transaksi selesai
+   - Tap "Selesaikan Panggilan"
+   - Status: `accepted` → `completed`
+
+5. **Stop selling**
+   - Dashboard → Tap "Berhenti Berjualan"
+   - GPS updates stop
+   - Marker hilang dari radar buyer
+   - Status: `is_selling = false`
+
+#### C. Review Management
+1. **View received reviews**
+   - Tab "Profil" → Section "Ulasan"
+   - Lihat semua rating & review dari buyer
+   - Average rating ditampilkan
 
 ---
 
-## 🎬 Alternative Testing: Code Review
+### 3️⃣ Testing sebagai ADMIN
 
-Karena belum bisa testing penuh tanpa backend, kamu bisa:
+#### A. Login admin
+- Email: `admin@radarkeliling.com` (tanya ke backend team)
+- Navigate ke Admin Reports screen
 
-### 1. **Review Code Structure**
-Cek folder structure di `lib/`:
+#### B. Review Moderation
+1. **View flagged reviews**
+   - List semua review dengan status `visible` / `hidden`
+
+2. **Hide inappropriate review**
+   - Tap review → "Sembunyikan Ulasan"
+   - Status: `visible` → `hidden`
+   - Review tidak tampil lagi di public
+
+3. **Unhide review**
+   - Filter: "Tersembunyi"
+   - Tap review → "Tampilkan Kembali"
+   - Status: `hidden` → `visible`
+
+---
+
+## 🔍 Testing Checklist
+
+### Auth Flow
+- [ ] Register buyer berhasil
+- [ ] Register merchant berhasil
+- [ ] Email verification berhasil
+- [ ] Resend verification berhasil
+- [ ] Login berhasil setelah verify
+- [ ] Login gagal jika email belum verify
+- [ ] Logout berhasil
+- [ ] Token expired handling (401 → login screen)
+
+### Buyer Flow
+- [ ] GPS permission request
+- [ ] Radar map loading
+- [ ] Merchant markers tampil
+- [ ] Pulse animation berjalan
+- [ ] Bottom sheet merchant detail
+- [ ] Menu items tampil
+- [ ] Call merchant berhasil
+- [ ] Call dengan location share
+- [ ] Call tanpa location share
+- [ ] Call status real-time update
+- [ ] Submit review berhasil
+- [ ] Review history tampil
+
+### Merchant Flow
+- [ ] Profile setup pertama kali
+- [ ] Edit profile berhasil
+- [ ] Add menu item berhasil
+- [ ] Edit menu item berhasil
+- [ ] Delete menu item berhasil
+- [ ] Upload foto menu (max 5)
+- [ ] Start selling berhasil
+- [ ] GPS updates terkirim
+- [ ] Incoming call notification
+- [ ] Accept call berhasil
+- [ ] View buyer location (jika di-share)
+- [ ] Complete call berhasil
+- [ ] Stop selling berhasil
+- [ ] View received reviews
+
+### Admin Flow
+- [ ] Login sebagai admin
+- [ ] View all reviews
+- [ ] Hide review berhasil
+- [ ] Unhide review berhasil
+- [ ] Filter by status
+
+### Real-time Features (WebSocket)
+- [ ] Merchant location updates (setiap 10s saat selling)
+- [ ] Buyer radar auto-refresh
+- [ ] Call status notifications
+- [ ] New call alerts untuk merchant
+
+### Error Handling
+- [ ] Network error → Snackbar muncul
+- [ ] Validation error → Field error message
+- [ ] 401 Unauthorized → Auto logout
+- [ ] 404 Not Found → Error message
+- [ ] GPS permission denied → Error dialog
+- [ ] GPS accuracy too low → Warning message
+
+---
+
+## 🐛 Debugging Tips
+
+### Check API calls
+```dart
+// lib/core/api/api_client.dart sudah include logging
+// Lihat console untuk request/response details
 ```
-lib/
-├── main.dart
-├── config/
-│   ├── app_config.dart
-│   └── app_theme.dart
-├── core/
-│   ├── models/          # ✅ 7 models lengkap
-│   ├── services/        # ✅ 7 services lengkap
-│   ├── api/             # ✅ DioClient + endpoints
-│   ├── router.dart      # ✅ GoRouter setup
-│   └── constants.dart   # ✅ String constants
-├── features/
-│   ├── auth/           # ✅ Login, Register, Verify
-│   ├── radar/          # ✅ Map + markers + bottom sheet
-│   ├── merchant_profile/  # ✅ Profile + menu
-│   ├── selling/        # ✅ Dashboard + GPS broadcast
-│   ├── call/           # ✅ History + detail + button
-│   ├── review/         # ✅ Form dengan star rating
-│   └── admin/          # ✅ Reports management
-└── shared/
-    ├── theme/          # ✅ Colors + typography
-    └── widgets/        # ✅ RkButton, RkTextField, RkSnackbar
+
+### Check WebSocket connection
+```dart
+// lib/core/services/websocket_service.dart
+// Console akan print connection status & events
 ```
 
-### 2. **Review Dokumentasi**
-- `README.md` - API contract lengkap
-- `ARCHITECTURE.md` - Penjelasan arsitektur
-- `CODE_STYLE.md` - Coding standards
-- `HANDOFF.md` - Integration guide
+### Test tanpa GPS
+- Chrome DevTools → Sensors tab
+- Override geolocation
+- Custom lat/lng: Jakarta (-6.2088, 106.8456)
 
-### 3. **Run Flutter Analyze**
-```bash
-cd frontend/radar_keliling_app
-flutter analyze
+### Test dengan multiple accounts
+1. Browser 1 (Normal): Login sebagai buyer
+2. Browser 2 (Incognito): Login sebagai merchant
+3. Test real-time interaction
+
+### Backend API debugging
+- Swagger UI: http://backend.jh-beon.cloud/docs
+- Test endpoints langsung dari browser
+- Check request/response format
+
+---
+
+## 📊 Expected API Responses
+
+### Success Response
+```json
+{
+  "data": {
+    // ... resource data
+  }
+}
 ```
 
-Output: **Zero errors**, hanya info deprecation non-blocking ✅
+### Error Response
+```json
+{
+  "message": "Error message",
+  "errors": {
+    "field": ["Validation error"]
+  }
+}
+```
+
+### 401 Unauthorized
+```json
+{
+  "message": "Unauthenticated."
+}
+```
 
 ---
 
-## 🚀 Next Steps untuk Full Testing
+## 🚨 Known Issues / Limitations
 
-### Option 1: Tunggu Backend Ready
-1. Backend team deploy staging
-2. Share credentials (base URL, Reverb key)
-3. Update `AppConfig`
-4. Full testing semua flow
+1. **WebSocket Reverb Key**
+   - `YOUR_REVERB_APP_KEY` masih placeholder
+   - Minta key dari backend team untuk real-time features
+   - Tanpa key: polling fallback (fetch setiap 10s)
 
-### Option 2: Mock Backend (Advanced)
-Buat mock API server dengan tools seperti:
-- `json-server` untuk REST API
-- `mockoon` untuk API mocking  
-- Manual mock dengan interceptor di Dio
+2. **Email Verification**
+   - Production: email real dikirim via SMTP
+   - Development: cek backend log untuk token
 
-Tapi ini butuh effort tambahan dan tidak urgent untuk hackathon.
+3. **Photo Upload**
+   - Max 2MB per file
+   - Format: jpg, png, gif, webp
+   - Backend resize & optimize otomatis
 
----
+4. **GPS Accuracy**
+   - Min accuracy: 50m untuk call
+   - Browser GPS bisa kurang akurat di dalam ruangan
+   - Mobile GPS lebih akurat
 
-## 📝 Kesimpulan Testing Saat Ini
-
-### ✅ Yang Sudah Bisa Diverifikasi:
-- Code compile without errors
-- Flutter analyze pass (zero errors)
-- App berjalan di Chrome
-- Login/Register screens tampil dengan baik
-- UI components & theme sesuai design
-- Navigation structure ready
-- All 22 commits clean di GitHub
-
-### ⏳ Yang Menunggu Backend:
-- Actual authentication flow
-- Data loading (merchants, menus, calls)
-- GPS tracking & WebSocket
-- Full user journey testing
-
-### 🎖️ Status Overall:
-**Frontend: READY FOR INTEGRATION** ✅
-
-Code sudah clean, professional, dan siap untuk connect dengan backend segera setelah backend team deploy staging.
+5. **WebSocket Reconnection**
+   - Auto-reconnect jika connection lost
+   - Max retry: 5x dengan exponential backoff
 
 ---
 
-## 💡 Saran
+## 📞 Support
 
-Untuk **hackathon presentation**, kamu bisa:
+- Backend Issues: Contact backend team
+- Frontend Issues: Check GitHub Issues
+- API Docs: http://backend.jh-beon.cloud/docs
 
-1. **Demo UI/UX:**
-   - Screenshot semua screens yang ada di code
-   - Buat mockup flow dengan Figma/Canva
-   - Explain architecture dari dokumentasi
-
-2. **Code Walkthrough:**
-   - Show folder structure yang rapi
-   - Explain key features dari README
-   - Highlight animations & UX details
-
-3. **Integration Plan:**
-   - Show HANDOFF.md untuk backend team
-   - Explain API contract yang sudah disepakati
-   - Demo `flutter analyze` output (zero errors)
-
-**Good luck untuk hackathon-nya! 🚀**
+**Happy Testing! 🎉**
