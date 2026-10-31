@@ -38,6 +38,11 @@ Route::prefix('v1')->group(function () {
             Route::put('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'update']);
             Route::post('/profile/photo', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'uploadPhoto']);
 
+            // Selling Status & Location
+            Route::post('/selling/start', [\App\Http\Controllers\Api\V1\Merchant\MerchantLocationController::class, 'startSelling']);
+            Route::post('/selling/stop', [\App\Http\Controllers\Api\V1\Merchant\MerchantLocationController::class, 'stopSelling']);
+            Route::put('/location', [\App\Http\Controllers\Api\V1\Merchant\MerchantLocationController::class, 'updateLocation']);
+
             // Menu Management
             Route::get('/menus', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'index']);
             Route::get('/menus/{id}', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'show']);
@@ -52,5 +57,33 @@ Route::prefix('v1')->group(function () {
         Route::get('/merchants/{id}', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'show']);
         Route::get('/merchants/{id}/menus', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'menus']);
         Route::get('/merchants/{id}/rating', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'rating']);
+
+        // Radar Endpoints (Buyer)
+        Route::get('/radar/merchants', [\App\Http\Controllers\Api\V1\RadarController::class, 'merchants']);
+
+        // Call Endpoints
+        Route::post('/calls', [\App\Http\Controllers\Api\V1\CallController::class, 'store']);
+        Route::get('/calls', [\App\Http\Controllers\Api\V1\CallController::class, 'index']);
+        Route::get('/calls/{id}', [\App\Http\Controllers\Api\V1\CallController::class, 'show']);
+        Route::post('/calls/{id}/answer', [\App\Http\Controllers\Api\V1\CallController::class, 'answer']);
+        Route::post('/calls/{id}/accept', [\App\Http\Controllers\Api\V1\CallController::class, 'accept']);
+        Route::post('/calls/{id}/unanswered', [\App\Http\Controllers\Api\V1\CallController::class, 'unanswered']);
+        Route::post('/calls/{id}/cancel', [\App\Http\Controllers\Api\V1\CallController::class, 'cancel']);
+        Route::post('/calls/{id}/complete', [\App\Http\Controllers\Api\V1\CallController::class, 'complete']);
+
+        // Review & Moderation Endpoints
+        Route::post('/calls/{id}/review', [\App\Http\Controllers\Api\V1\ReviewController::class, 'store']);
+        Route::post('/reviews/{id}/reports', [\App\Http\Controllers\Api\V1\ReviewReportController::class, 'store']);
+
+        // Admin Endpoints
+        Route::prefix('admin')->middleware('admin')->group(function () {
+            Route::get('/review-reports', [\App\Http\Controllers\Api\V1\ReviewReportController::class, 'adminIndex']);
+            Route::patch('/reviews/{id}/hide', [\App\Http\Controllers\Api\V1\ReviewController::class, 'hide']);
+        });
     });
+
+    // Public merchant endpoints (accessible without token)
+    Route::get('/merchants/{id}', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'show']);
+    Route::get('/merchants/{id}/menus', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'menus']);
+    Route::get('/merchants/{id}/rating', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'rating']);
 });

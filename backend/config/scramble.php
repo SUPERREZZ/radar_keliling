@@ -155,6 +155,7 @@ return [
 
     'middleware' => [
         'web',
+        \Dedoc\Scramble\Http\Middleware\RestrictedDocsAccess::class,
     ],
 
     'extensions' => [],
