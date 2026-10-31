@@ -75,4 +75,26 @@ class PublicMerchantController extends Controller
             ],
         ]);
     }
+
+    public function reviews(Request $request, string $id): JsonResponse
+    {
+        $merchant = MerchantProfile::findOrFail($id);
+        $reviews = $merchant->reviews()
+            ->with('buyer:id,email')
+            ->where('moderation_status', 'visible')
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+
+        return response()->json([
+            'data' => $reviews->map(fn ($r) => [
+                'id' => $r->id,
+                'call_id' => $r->call_id,
+                'rating' => (int) $r->rating,
+                'review_text' => $r->review_text,
+                'buyer_name' => $r->buyer ? explode('@', $r->buyer->email)[0] : 'Pembeli',
+                'created_at' => $r->created_at?->toIso8601String(),
+            ]),
+        ]);
+    }
 }
