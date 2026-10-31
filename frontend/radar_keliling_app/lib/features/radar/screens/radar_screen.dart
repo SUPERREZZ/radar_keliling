@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../core/models/user_model.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/websocket_service.dart';
 import '../../../features/auth/providers/auth_provider.dart';
@@ -24,6 +25,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
   final MapController _mapController = MapController();
   LatLng? _userLocation;
   bool _locationPermissionDenied = false;
+  double? _maxDistanceM;
 
   late AnimationController _fabAnim;
   late Animation<double> _fabScale;
@@ -57,7 +59,14 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
       _fabAnim.forward();
     }
 
-    await ref.read(radarProvider.notifier).loadRadar();
+    final loaded = await ref.read(radarProvider.notifier).loadRadar();
+    if (!loaded && mounted) {
+      showRkSnackbar(
+        context,
+        'Radar belum bisa dimuat. Pastikan GPS aktif lalu coba refresh.',
+        isError: true,
+      );
+    }
   }
 
   void _initWebSocket() {
@@ -76,7 +85,19 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
   }
 
   Future<void> _refreshRadar() async {
-    await ref.read(radarProvider.notifier).loadRadar();
+    final loaded = await ref
+        .read(radarProvider.notifier)
+        .loadRadar(keepExisting: true);
+    if (!mounted) return;
+    if (loaded) {
+      showRkSnackbar(context, 'Radar berhasil diperbarui.');
+    } else {
+      showRkSnackbar(
+        context,
+        'Radar belum bisa diperbarui. Pastikan GPS aktif lalu coba lagi.',
+        isError: true,
+      );
+    }
   }
 
   void _centerOnUser() {
@@ -98,6 +119,11 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
     final user = ref.watch(authProvider).valueOrNull;
     final radarState = ref.watch(radarProvider);
     final merchants = radarState.valueOrNull ?? [];
+    final visibleMerchants = _maxDistanceM == null
+        ? merchants
+        : merchants
+              .where((m) => m.distanceM <= _maxDistanceM!)
+              .toList(growable: false);
 
     return Scaffold(
       body: Stack(
@@ -113,8 +139,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.radarkeliling.radar_keliling',
                 maxZoom: 18,
               ),
@@ -144,8 +169,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                         decoration: BoxDecoration(
                           color: Colors.blue,
                           shape: BoxShape.circle,
-                          border:
-                              Border.all(color: Colors.white, width: 2.5),
+                          border: Border.all(color: Colors.white, width: 2.5),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.blue.withOpacity(0.4),
@@ -159,7 +183,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                 ),
               // Marker pedagang
               MerchantMarkerLayer(
-                merchants: merchants,
+                merchants: visibleMerchants,
                 onTap: (m) => MerchantBottomSheet.show(context, m),
               ),
             ],
@@ -169,77 +193,132 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
                           ),
-                        ],
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.radar,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Radar Keliling',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (radarState.isLoading)
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              else
+                                Text(
+                                  '${visibleMerchants.length} pedagang',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.radar,
-                              color: AppColors.primary, size: 20),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Radar Keliling',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              color: AppColors.textPrimary,
+                      const SizedBox(width: 10),
+                      // Menu akun
+                      GestureDetector(
+                        onTap: () => _showAccountMenu(context, user),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.surface,
+                              width: 2,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          const Spacer(),
-                          if (radarState.isLoading)
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary),
-                            )
-                          else
-                            Text(
-                              '${merchants.length} pedagang',
+                          child: Center(
+                            child: Text(
+                              _accountInitial(user),
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
+                                color: AppColors.primary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Menu akun
-                  GestureDetector(
-                    onTap: () => _showAccountMenu(context, user?.role),
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
                           ),
-                        ],
+                        ),
                       ),
-                      child: const Icon(Icons.person_outline,
-                          color: AppColors.textPrimary, size: 20),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 36,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _MapFilterChip(
+                          label: 'Semua',
+                          selected: _maxDistanceM == null,
+                          onTap: () => setState(() => _maxDistanceM = null),
+                        ),
+                        const SizedBox(width: 8),
+                        _MapFilterChip(
+                          label: '< 500 m',
+                          selected: _maxDistanceM == 500,
+                          onTap: () => setState(() => _maxDistanceM = 500),
+                        ),
+                        const SizedBox(width: 8),
+                        _MapFilterChip(
+                          label: '< 1 km',
+                          selected: _maxDistanceM == 1000,
+                          onTap: () => setState(() => _maxDistanceM = 1000),
+                        ),
+                        const SizedBox(width: 8),
+                        _MapFilterChip(
+                          label: '< 2 km',
+                          selected: _maxDistanceM == 2000,
+                          onTap: () => setState(() => _maxDistanceM = 2000),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -261,14 +340,16 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.location_off_outlined,
-                        color: Colors.white, size: 20),
+                    Icon(
+                      Icons.location_off_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Izin lokasi ditolak. Aktifkan lokasi untuk melihat pedagang terdekat.',
-                        style:
-                            TextStyle(color: Colors.white, fontSize: 13),
+                        style: TextStyle(color: Colors.white, fontSize: 13),
                       ),
                     ),
                   ],
@@ -323,26 +404,44 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),
-            selectedIcon:
-                Icon(Icons.history, color: AppColors.primary),
+            selectedIcon: Icon(Icons.history, color: AppColors.primary),
             label: 'Riwayat',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded, color: AppColors.primary),
+            label: 'Profil',
           ),
         ],
         onDestinationSelected: (i) {
           if (i == 1) context.push('/calls');
+          if (i == 2) _showAccountMenu(context, user);
         },
       ),
     );
   }
 
-  void _showAccountMenu(BuildContext context, String? role) {
+  String _accountInitial(UserModel? user) {
+    final email = user?.email.trim() ?? '';
+    return email.isEmpty ? '?' : email[0].toUpperCase();
+  }
+
+  String _roleLabel(UserModel? user) {
+    return switch (user?.role) {
+      'merchant' => 'Pedagang',
+      'admin' => 'Administrator',
+      _ => 'Pembeli',
+    };
+  }
+
+  void _showAccountMenu(BuildContext context, UserModel? user) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
         decoration: const BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         child: Column(
@@ -352,31 +451,155 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(2)),
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            const SizedBox(height: 16),
-            if (role == 'admin')
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      _accountInitial(user),
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user?.email ?? 'Pengguna',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        _roleLabel(user),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Aktif',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const Divider(height: 1, color: AppColors.divider),
+            if (user?.role == 'admin')
               ListTile(
-                leading: const Icon(Icons.admin_panel_settings_outlined,
-                    color: AppColors.primary),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.admin_panel_settings_outlined,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Panel Admin'),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.textHint,
+                  size: 20,
+                ),
                 onTap: () {
                   context.pop();
                   context.push('/admin/reports');
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.logout_outlined,
-                  color: AppColors.error),
-              title: const Text('Keluar',
-                  style: TextStyle(color: AppColors.error)),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.logout_outlined,
+                color: AppColors.error,
+              ),
+              title: const Text(
+                'Keluar',
+                style: TextStyle(color: AppColors.error),
+              ),
               onTap: () {
                 context.pop();
                 ref.read(authProvider.notifier).logout();
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MapFilterChip extends StatelessWidget {
+  const _MapFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.07),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.textSecondary,
+          ),
         ),
       ),
     );

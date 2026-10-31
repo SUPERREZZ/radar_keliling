@@ -1,15 +1,18 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../config/app_config.dart';
 import '../../../core/models/merchant_model.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../call/widgets/call_button.dart';
+import '../../merchant_profile/providers/merchant_profile_provider.dart';
 
-class MerchantBottomSheet extends StatelessWidget {
+class MerchantBottomSheet extends ConsumerWidget {
   const MerchantBottomSheet({super.key, required this.merchant});
   final MerchantRadarItem merchant;
 
-  static Future<void> show(
-      BuildContext context, MerchantRadarItem merchant) {
+  static Future<void> show(BuildContext context, MerchantRadarItem merchant) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -19,7 +22,12 @@ class MerchantBottomSheet extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(
+      merchantPublicProfileProvider(merchant.merchantId),
+    );
+    final profile = profileAsync.valueOrNull;
+    final photoUrl = merchant.profilePhotoUrl ?? profile?.profilePhotoUrl;
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -45,14 +53,31 @@ class MerchantBottomSheet extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: const Icon(Icons.storefront,
-                    color: AppColors.primary, size: 24),
+                clipBehavior: Clip.antiAlias,
+                child: photoUrl == null || photoUrl.isEmpty
+                    ? const Icon(
+                        Icons.storefront,
+                        color: AppColors.primary,
+                        size: 26,
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: AppConfig.resolveMediaUrl(photoUrl),
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) =>
+                            Container(color: AppColors.primaryLight),
+                        errorWidget: (_, __, ___) => const Icon(
+                          Icons.storefront,
+                          color: AppColors.primary,
+                          size: 26,
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -69,26 +94,53 @@ class MerchantBottomSheet extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined,
-                            size: 13, color: AppColors.textSecondary),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${merchant.distanceM.toInt()} meter dari kamu',
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 13,
+                          color: AppColors.textSecondary,
                         ),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            '${merchant.distanceM.toInt()} m dari kamu',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        if (profile != null) ...[
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 13,
+                            color: AppColors.warning,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            profile.averageRating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(20),

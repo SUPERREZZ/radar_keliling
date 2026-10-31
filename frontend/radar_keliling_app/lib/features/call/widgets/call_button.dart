@@ -26,8 +26,7 @@ class CallButton extends ConsumerStatefulWidget {
 class _CallButtonState extends ConsumerState<CallButton> {
   bool _loading = false;
 
-  bool get _inRange =>
-      widget.distanceM <= AppConfig.callRadiusMeters;
+  bool get _inRange => widget.distanceM <= AppConfig.callRadiusMeters;
 
   Future<void> _handleCall() async {
     if (!_inRange) {
@@ -61,7 +60,9 @@ class _CallButtonState extends ConsumerState<CallButton> {
         return;
       }
 
-      await ref.read(callServiceProvider).createCall(
+      await ref
+          .read(callServiceProvider)
+          .createCall(
             merchantId: widget.merchantId,
             shareLocation: consent,
             buyerLatitude: loc?.latitude ?? 0,
@@ -75,14 +76,13 @@ class _CallButtonState extends ConsumerState<CallButton> {
     } on ApiException catch (e) {
       if (!mounted) return;
       final msg = switch (e.code) {
-        'LOCATION_OUT_OF_RANGE' =>
-          'Kamu sudah di luar jangkauan pedagang ini.',
+        'LOCATION_OUT_OF_RANGE' => 'Kamu sudah di luar jangkauan pedagang ini.',
         'GPS_ACCURACY_INSUFFICIENT' =>
           'Akurasi GPS tidak cukup. Pindah ke tempat terbuka.',
-        'CALL_RATE_LIMITED' =>
-          'Terlalu banyak panggilan. Tunggu sebentar.',
-        'MERCHANT_NOT_SELLING' =>
-          'Pedagang sudah tidak berjualan.',
+        'CALL_RATE_LIMITED' => 'Terlalu banyak panggilan. Tunggu sebentar.',
+        'MERCHANT_NOT_SELLING' => 'Pedagang sudah tidak berjualan.',
+        'MERCHANT_LOCATION_STALE' =>
+          'Lokasi pedagang belum aktif. Minta pedagang membuka aplikasi lagi, lalu coba panggil ulang.',
         _ => e.message,
       };
       showRkSnackbar(context, msg, isError: true);
@@ -111,14 +111,20 @@ class _CallButtonState extends ConsumerState<CallButton> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Tidak, lanjutkan',
-                style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Tidak, lanjutkan',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Ya, bagikan',
-                style: TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Ya, bagikan',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -137,14 +143,17 @@ class _CallButtonState extends ConsumerState<CallButton> {
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : const Icon(Icons.campaign_outlined, size: 18),
         label: const Text('Panggil'),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );

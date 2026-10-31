@@ -1,6 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../config/app_config.dart';
 import '../../../core/models/merchant_model.dart';
 import '../../../shared/theme/app_theme.dart';
 
@@ -19,12 +21,14 @@ class MerchantMarkerLayer extends StatelessWidget {
     return MarkerLayer(
       markers: merchants
           .where((m) => m.isSelling && m.isLocationFresh)
-          .map((m) => Marker(
-                point: LatLng(m.latitude, m.longitude),
-                width: 56,
-                height: 64,
-                child: _MarkerWidget(merchant: m, onTap: () => onTap(m)),
-              ))
+          .map(
+            (m) => Marker(
+              point: LatLng(m.latitude, m.longitude),
+              width: 56,
+              height: 64,
+              child: _MarkerWidget(merchant: m, onTap: () => onTap(m)),
+            ),
+          )
           .toList(),
     );
   }
@@ -51,9 +55,10 @@ class _MarkerWidgetState extends State<_MarkerWidget>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: false);
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.5).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.5,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
@@ -92,12 +97,13 @@ class _MarkerWidgetState extends State<_MarkerWidget>
                     ),
                   ),
                 ),
-                // Icon utama
+                // Foto / ikon utama
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: 34,
+                  height: 34,
+                  padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    color: Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -107,8 +113,35 @@ class _MarkerWidgetState extends State<_MarkerWidget>
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.storefront,
-                      size: 16, color: Colors.white),
+                  child: ClipOval(
+                    child: widget.merchant.profilePhotoUrl == null
+                        ? Container(
+                            color: AppColors.primary,
+                            child: const Icon(
+                              Icons.storefront,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: AppConfig.resolveMediaUrl(
+                              widget.merchant.profilePhotoUrl!,
+                            ),
+                            width: 30,
+                            height: 30,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) =>
+                                Container(color: AppColors.primaryLight),
+                            errorWidget: (_, __, ___) => Container(
+                              color: AppColors.primary,
+                              child: const Icon(
+                                Icons.storefront,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                  ),
                 ),
               ],
             ),
@@ -123,9 +156,10 @@ class _MarkerWidgetState extends State<_MarkerWidget>
             child: Text(
               '${widget.merchant.distanceM.toInt()}m',
               style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700),
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
