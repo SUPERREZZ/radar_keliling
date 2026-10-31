@@ -104,5 +104,23 @@ class EmailVerificationTest extends TestCase
         $response->assertStatus(400)
             ->assertJsonPath('error.code', 'EMAIL_ALREADY_VERIFIED');
     }
+
+    public function test_verify_email_notification_renders_custom_branded_template(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $notification = new VerifyEmailNotification('123456');
+
+        $mailMessage = $notification->toMail($user);
+
+        $this->assertEquals('Verifikasi Email - Radar Keliling', $mailMessage->subject);
+        $this->assertEquals('emails.verify-email', $mailMessage->view);
+
+        $renderedHtml = view($mailMessage->view, $mailMessage->viewData)->render();
+
+        $this->assertStringContainsString('Radar Keliling', $renderedHtml);
+        $this->assertStringContainsString('123456', $renderedHtml);
+        $this->assertStringContainsString('Verifikasi Email Sekarang', $renderedHtml);
+        $this->assertStringContainsString('api/v1/auth/verify-email?token=123456', $renderedHtml);
+    }
 }
 
