@@ -27,8 +27,9 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // Alias routes outside /auth prefix for /fcm/token and /account
+    // Alias routes outside /auth prefix for /fcm/token, /account, and /broadcasting/auth
     Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/broadcasting/auth', [\Illuminate\Broadcasting\BroadcastController::class, 'authenticate']);
         Route::delete('/account', [AuthController::class, 'deleteAccount']);
         Route::post('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'storeToken']);
         Route::delete('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'deleteToken']);
@@ -60,11 +61,6 @@ Route::prefix('v1')->group(function () {
             // Smart Buyer Hotspots (Heatmap for Merchant)
             Route::get('/radar/buyer-hotspots', [\App\Http\Controllers\Api\V1\HeatmapController::class, 'merchantHotspots']);
         });
-
-        // Public merchant endpoints
-        Route::get('/merchants/{id}', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'show']);
-        Route::get('/merchants/{id}/menus', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'menus']);
-        Route::get('/merchants/{id}/rating', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'rating']);
 
         // Radar Endpoints (Buyer)
         Route::get('/radar/merchants', [\App\Http\Controllers\Api\V1\RadarController::class, 'merchants']);
