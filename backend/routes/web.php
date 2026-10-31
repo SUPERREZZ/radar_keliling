@@ -3,8 +3,20 @@
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect('/docs/api');
+    if (config('app.env') === 'production' || app()->environment('production')) {
+        return response()->json([
+            'name' => config('app.name'),
+            'status' => 'online',
+        ]);
+    }
+
+    return redirect('/docs');
 });
 
-Route::redirect('/docs', '/docs/api');
-Route::redirect('/swagger', '/docs/api');
+Route::get('/docs', function () {
+    abort_if(config('app.env') === 'production' || app()->environment('production'), 404);
+
+    return view('swagger');
+});
+
+Route::redirect('/swagger', '/docs');

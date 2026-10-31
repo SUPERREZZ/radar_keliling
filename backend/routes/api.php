@@ -57,5 +57,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/merchants/{id}', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'show']);
         Route::get('/merchants/{id}/menus', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'menus']);
         Route::get('/merchants/{id}/rating', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'rating']);
+
+        // Radar Endpoints (Buyer)
+        Route::get('/radar/merchants', [\App\Http\Controllers\Api\V1\RadarController::class, 'merchants']);
     });
 });
