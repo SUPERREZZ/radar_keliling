@@ -117,13 +117,17 @@ class CallController extends Controller
         ]));
 
         // Broadcast event real-time ke pedagang via WebSocket Reverb
-        broadcast(new IncomingCall(
-            merchantId: $merchant->id,
-            callId: $call->id,
-            buyerLatitude: $validated['share_location'] ? $bLat : null,
-            buyerLongitude: $validated['share_location'] ? $bLng : null,
-            locationShared: (bool) $validated['share_location']
-        ));
+        try {
+            broadcast(new IncomingCall(
+                merchantId: $merchant->id,
+                callId: $call->id,
+                buyerLatitude: $validated['share_location'] ? $bLat : null,
+                buyerLongitude: $validated['share_location'] ? $bLng : null,
+                locationShared: (bool) $validated['share_location']
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on IncomingCall: '.$e->getMessage());
+        }
 
         // Kirim Push Notification FCM ke perangkat pedagang (jika FCM diaktifkan)
         if ($merchant->user_id) {
@@ -257,7 +261,11 @@ class CallController extends Controller
         $call->update(['status' => Call::STATUS_ACCEPTED]);
         $call->status = Call::STATUS_ACCEPTED;
 
-        broadcast(new CallStatusUpdated($call->id, Call::STATUS_ACCEPTED, $call->merchant_id));
+        try {
+            broadcast(new CallStatusUpdated($call->id, Call::STATUS_ACCEPTED, $call->merchant_id));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on answer: '.$e->getMessage());
+        }
 
         $this->fcmService->sendToUser(
             userId: (string) $call->buyer_id,
@@ -294,7 +302,11 @@ class CallController extends Controller
         $call->update(['status' => Call::STATUS_COMPLETED]);
         $call->status = Call::STATUS_COMPLETED;
 
-        broadcast(new CallStatusUpdated($call->id, Call::STATUS_COMPLETED, $call->merchant_id));
+        try {
+            broadcast(new CallStatusUpdated($call->id, Call::STATUS_COMPLETED, $call->merchant_id));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on complete: '.$e->getMessage());
+        }
 
         $this->fcmService->sendToUser(
             userId: (string) $call->buyer_id,
@@ -326,7 +338,11 @@ class CallController extends Controller
         $call->update(['status' => Call::STATUS_UNANSWERED]);
         $call->status = Call::STATUS_UNANSWERED;
 
-        broadcast(new CallStatusUpdated($call->id, Call::STATUS_UNANSWERED, $call->merchant_id));
+        try {
+            broadcast(new CallStatusUpdated($call->id, Call::STATUS_UNANSWERED, $call->merchant_id));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on unanswered: '.$e->getMessage());
+        }
 
         $this->fcmService->sendToUser(
             userId: (string) $call->buyer_id,
@@ -358,7 +374,11 @@ class CallController extends Controller
         $call->update(['status' => Call::STATUS_CANCELLED]);
         $call->status = Call::STATUS_CANCELLED;
 
-        broadcast(new CallStatusUpdated($call->id, Call::STATUS_CANCELLED, $call->merchant_id));
+        try {
+            broadcast(new CallStatusUpdated($call->id, Call::STATUS_CANCELLED, $call->merchant_id));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on cancel: '.$e->getMessage());
+        }
 
         return (new CallResource($call))->response()->setStatusCode(200);
     }

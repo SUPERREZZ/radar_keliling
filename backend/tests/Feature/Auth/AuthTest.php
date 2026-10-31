@@ -124,6 +124,13 @@ class AuthTest extends TestCase
 
         $this->assertSoftDeleted('users', ['id' => $user->id]);
         $this->assertDatabaseCount('personal_access_tokens', 0);
+
+        // Email yang sama dapat didaftarkan kembali setelah akun lama dihapus
+        $this->postJson('/api/v1/auth/register', [
+            'email' => 'hapus_akun@example.com',
+            'password' => 'Password123',
+            'role' => 'buyer',
+        ])->assertStatus(201);
     }
 }
 

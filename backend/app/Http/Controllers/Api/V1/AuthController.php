@@ -118,7 +118,10 @@ class AuthController extends Controller
 
     public function logout(Request $request): Response
     {
-        $request->user()->currentAccessToken()->delete();
+        $token = $request->user()?->currentAccessToken();
+        if ($token && method_exists($token, 'delete')) {
+            $token->delete();
+        }
 
         return response()->noContent();
     }
@@ -131,7 +134,19 @@ class AuthController extends Controller
     public function deleteAccount(Request $request): Response
     {
         $user = $request->user();
+
+        if ($user->merchantProfile) {
+            $user->merchantProfile->update(['is_selling' => false]);
+        }
+
+        $user->fcmTokens()->delete();
         $user->tokens()->delete();
+        $user->emailVerificationTokens()->delete();
+
+        // Anonimkan email sebelum soft-delete agar email asli dapat digunakan mendaftar ulang
+        $user->update([
+            'email' => "deleted_{$user->id}_".time().'@deleted.local',
+        ]);
         $user->delete();
 
         return response()->noContent();

@@ -44,7 +44,11 @@ class MerchantLocationController extends Controller
 
         if ($loc) {
             $geohash = Geohash::encode((float) $loc->lat, (float) $loc->lng, 4);
-            broadcast(new MerchantSellingStatusChanged($geohash, $profile->id, true));
+            try {
+                broadcast(new MerchantSellingStatusChanged($geohash, $profile->id, true));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on startSelling: '.$e->getMessage());
+            }
         }
 
         return response()->json([
@@ -66,7 +70,11 @@ class MerchantLocationController extends Controller
 
         if ($loc) {
             $geohash = Geohash::encode((float) $loc->lat, (float) $loc->lng, 4);
-            broadcast(new MerchantSellingStatusChanged($geohash, $profile->id, false));
+            try {
+                broadcast(new MerchantSellingStatusChanged($geohash, $profile->id, false));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on stopSelling: '.$e->getMessage());
+            }
         }
 
         return response()->json([
@@ -135,17 +143,21 @@ class MerchantLocationController extends Controller
         if ($hasMoved5m) {
             $geohash = Geohash::encode($lat, $lng, 4);
 
-            broadcast(new MerchantLocationUpdated(
-                geohash: $geohash,
-                merchantId: $profile->id,
-                businessName: $profile->business_name,
-                latitude: $lat,
-                longitude: $lng,
-                gpsAccuracyM: $accuracy,
-                lastUpdatedAt: $recordedAt,
-                isSelling: (bool) $profile->is_selling,
-                distanceMovedM: $distanceMovedM
-            ));
+            try {
+                broadcast(new MerchantLocationUpdated(
+                    geohash: $geohash,
+                    merchantId: $profile->id,
+                    businessName: $profile->business_name,
+                    latitude: $lat,
+                    longitude: $lng,
+                    gpsAccuracyM: $accuracy,
+                    lastUpdatedAt: $recordedAt,
+                    isSelling: (bool) $profile->is_selling,
+                    distanceMovedM: $distanceMovedM
+                ));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on updateLocation: '.$e->getMessage());
+            }
         }
 
         return response()->json([

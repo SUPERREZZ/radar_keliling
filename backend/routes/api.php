@@ -10,9 +10,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
         Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
-        // Email verification endpoints & aliases
-        Route::post('/email/verify', [AuthController::class, 'verifyEmail']);
-        Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+        // Email verification endpoints & aliases (rate-limited against brute-force)
+        Route::post('/email/verify', [AuthController::class, 'verifyEmail'])->middleware('throttle:10,1');
+        Route::post('/verify-email', [AuthController::class, 'verifyEmail'])->middleware('throttle:10,1');
 
         Route::post('/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:3,60');
         Route::post('/resend-verification', [AuthController::class, 'resendVerification'])->middleware('throttle:3,60');

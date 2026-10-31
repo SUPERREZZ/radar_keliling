@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\MenuPhotoResource;
 use App\Http\Resources\MenuResource;
 use App\Models\MenuPhoto;
+use App\Models\MerchantProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -15,13 +16,20 @@ use Illuminate\Support\Facades\Storage;
 
 class MenuController extends Controller
 {
-    public function index(Request $request): AnonymousResourceCollection
+    private function getProfileOrFail(Request $request): MerchantProfile
     {
-        $profile = $request->user()->merchantProfile;
+        $profile = $request->user()?->merchantProfile;
 
         if (! $profile) {
             throw new ApiException('MERCHANT_PROFILE_NOT_FOUND', 'Profil pedagang belum dibuat.', 404);
         }
+
+        return $profile;
+    }
+
+    public function index(Request $request): AnonymousResourceCollection
+    {
+        $profile = $this->getProfileOrFail($request);
 
         $query = $profile->menus()->with('photos');
 
@@ -86,7 +94,7 @@ class MenuController extends Controller
 
     public function show(Request $request, string $id): JsonResponse
     {
-        $profile = $request->user()->merchantProfile;
+        $profile = $this->getProfileOrFail($request);
         $menu = $profile->menus()->with('photos')->findOrFail($id);
 
         return (new MenuResource($menu))->response()->setStatusCode(200);
@@ -101,11 +109,7 @@ class MenuController extends Controller
             'is_available' => ['nullable', 'boolean'],
         ]);
 
-        $profile = $request->user()->merchantProfile;
-
-        if (! $profile) {
-            throw new ApiException('MERCHANT_PROFILE_NOT_FOUND', 'Profil pedagang belum dibuat.', 404);
-        }
+        $profile = $this->getProfileOrFail($request);
 
         $menu = $profile->menus()->create([
             'name' => trim($validated['name']),
@@ -126,7 +130,7 @@ class MenuController extends Controller
             'is_available' => ['sometimes', 'required', 'boolean'],
         ]);
 
-        $profile = $request->user()->merchantProfile;
+        $profile = $this->getProfileOrFail($request);
         $menu = $profile->menus()->findOrFail($id);
 
         $menu->update($validated);
@@ -136,7 +140,7 @@ class MenuController extends Controller
 
     public function toggleAvailability(Request $request, string $id): JsonResponse
     {
-        $profile = $request->user()->merchantProfile;
+        $profile = $this->getProfileOrFail($request);
         $menu = $profile->menus()->findOrFail($id);
 
         $isAvailable = $request->has('is_available')
@@ -150,7 +154,7 @@ class MenuController extends Controller
 
     public function destroy(Request $request, string $id): Response
     {
-        $profile = $request->user()->merchantProfile;
+        $profile = $this->getProfileOrFail($request);
         $menu = $profile->menus()->with('photos')->findOrFail($id);
 
         $paths = $menu->photos->pluck('storage_path')->filter()->values()->all();
@@ -169,7 +173,7 @@ class MenuController extends Controller
             'photo' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
         ]);
 
-        $profile = $request->user()->merchantProfile;
+        $profile = $this->getProfileOrFail($request);
         $menu = $profile->menus()->withCount('photos')->findOrFail($id);
 
         if ($menu->photos_count >= 5) {
@@ -191,7 +195,7 @@ class MenuController extends Controller
 
     public function deletePhoto(Request $request, string $id): Response
     {
-        $profile = $request->user()->merchantProfile;
+        $profile = $this->getProfileOrFail($request);
 
         $photo = MenuPhoto::where('id', $id)
             ->whereHas('menu', fn ($q) => $q->where('merchant_id', $profile->id))
