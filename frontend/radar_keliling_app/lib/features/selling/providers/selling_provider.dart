@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/services/merchant_service.dart';
+
 import '../../../core/services/location_service.dart';
+import '../../../core/services/merchant_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
 final sellingProvider =
@@ -30,11 +32,18 @@ class SellingNotifier extends StateNotifier<AsyncValue<bool>> {
   Future<void> startSelling() async {
     state = const AsyncValue.loading();
     try {
+      final hasPermission = await _locationService.requestPermission();
+      if (!hasPermission) {
+        state = const AsyncValue.data(false);
+        throw Exception('Izin lokasi diperlukan untuk mulai berjualan.');
+      }
+
       await _merchantService.startSelling();
       state = const AsyncValue.data(true);
       _startGps();
     } catch (e, s) {
       state = AsyncValue.error(e, s);
+      rethrow;
     }
   }
 
@@ -46,6 +55,7 @@ class SellingNotifier extends StateNotifier<AsyncValue<bool>> {
       state = const AsyncValue.data(false);
     } catch (e, s) {
       state = AsyncValue.error(e, s);
+      rethrow;
     }
   }
 
