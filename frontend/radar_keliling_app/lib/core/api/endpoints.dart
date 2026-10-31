@@ -20,6 +20,8 @@ class Endpoints {
   static const String merchantLocation = '/v1/merchant/location';
   static const String merchantMenus = '/v1/merchant/menus';
   static String merchantMenuById(String id) => '/v1/merchant/menus/$id';
+  static String merchantMenuAvailability(String id) =>
+      '/v1/merchant/menus/$id/availability';
   static String merchantMenuPhotos(String menuId) =>
       '/v1/merchant/menus/$menuId/photos';
   static String deleteMenuPhoto(String photoId) =>
@@ -42,7 +44,8 @@ class Endpoints {
 
   // Reviews (all start with /v1)
   static String callReview(String callId) => '/v1/calls/$callId/review';
-  static String reviewReport(String reviewId) => '/v1/reviews/$reviewId/reports';
+  static String reviewReport(String reviewId) =>
+      '/v1/reviews/$reviewId/reports';
 
   // Admin (all start with /v1)
   static const String adminReviewReports = '/v1/admin/review-reports';
