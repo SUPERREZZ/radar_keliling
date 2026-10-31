@@ -1,0 +1,15 @@
+.git
+.github
+vendor
+node_modules
+npm-debug.log
+yarn-error.log
+storage/*.key
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+.vagrant
+

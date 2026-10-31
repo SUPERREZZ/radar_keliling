@@ -1,0 +1,53 @@
+services:
+  app:
+    # Ganti dengan path GHCR milikmu sesuai yang ada di workflow CI/CD
+    image: ghcr.io/superrezz/radar_keliling-backend:latest
+    container_name: radar_backend_app
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    # Membaca seluruh environment dari file .env di VPS
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/var/www/html/.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  reverb:
+    image: ghcr.io/superrezz/radar_keliling-backend:latest
+    container_name: radar_backend_reverb
+    restart: unless-stopped
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/var/www/html/.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: radar_backend_db
+    restart: unless-stopped
+    # Database mengambil variabel dari .env (dengan nilai default jika kosong)
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-radar_keliling}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecretpassword}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-radar_keliling}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
