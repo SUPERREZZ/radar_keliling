@@ -20,10 +20,7 @@ class CallHistoryScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Riwayat Panggilan'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          onPressed: () => context.pop(),
-        ),
+        automaticallyImplyLeading: false,
       ),
       body: callsAsync.when(
         loading: () => const Center(

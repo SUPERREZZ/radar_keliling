@@ -7,7 +7,7 @@ import '../features/splash/splash_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/verify_email_screen.dart';
-import '../features/radar/screens/radar_screen.dart';
+import '../features/radar/screens/buyer_shell.dart';
 import '../features/merchant_profile/screens/merchant_profile_screen.dart';
 import '../features/merchant_profile/screens/edit_profile_screen.dart';
 import '../features/merchant_profile/screens/merchant_menu_screen.dart';
@@ -80,7 +80,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       // Buyer routes
-      GoRoute(path: '/radar', builder: (_, __) => const RadarScreen()),
+      GoRoute(path: '/radar', builder: (_, __) => const BuyerShell()),
       GoRoute(
         path: '/merchant/:id',
         builder: (_, state) =>

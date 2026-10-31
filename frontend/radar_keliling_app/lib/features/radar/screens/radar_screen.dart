@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../core/models/user_model.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/websocket_service.dart';
-import '../../../features/auth/providers/auth_provider.dart';
 import '../providers/radar_provider.dart';
 import '../widgets/merchant_marker.dart';
 import '../widgets/merchant_bottom_sheet.dart';
@@ -116,7 +113,6 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authProvider).valueOrNull;
     final radarState = ref.watch(radarProvider);
     final merchants = radarState.valueOrNull ?? [];
     final visibleMerchants = _maxDistanceM == null
@@ -232,41 +228,27 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                                 ),
                               ),
                               const Spacer(),
-                              if (radarState.isLoading)
-                                const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.primary,
-                                  ),
-                                )
-                              else
-                                Text(
-                                  '${visibleMerchants.length} pedagang',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                  ),
+                              Text(
+                                '${visibleMerchants.length} pedagang',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
                                 ),
+                              ),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // Menu akun
+                      // Refresh shortcut
                       GestureDetector(
-                        onTap: () => _showAccountMenu(context, user),
+                        onTap: _refreshRadar,
                         child: Container(
                           width: 42,
                           height: 42,
                           decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
+                            color: AppColors.surface,
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.surface,
-                              width: 2,
-                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.08),
@@ -275,16 +257,22 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: Text(
-                              _accountInitial(user),
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
+                          child: radarState.isLoading
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.refresh_rounded,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
                         ),
                       ),
                     ],
@@ -360,204 +348,15 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
       ),
 
       // ── FABs ─────────────────────────────────────────────
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Refresh
-          FloatingActionButton.small(
-            heroTag: 'fab_refresh',
-            onPressed: _refreshRadar,
-            backgroundColor: AppColors.surface,
-            foregroundColor: AppColors.primary,
-            elevation: 2,
-            child: const Icon(Icons.refresh, size: 20),
-          ),
-          const SizedBox(height: 10),
-          // Lokasi user
-          ScaleTransition(
-            scale: _fabScale,
-            child: FloatingActionButton(
-              heroTag: 'fab_location',
-              onPressed: _centerOnUser,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              child: const Icon(Icons.my_location, size: 22),
-            ),
-          ),
-        ],
-      ),
-
-      // ── Bottom nav ────────────────────────────────────────
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: AppColors.primaryLight,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.radar_outlined),
-            selectedIcon: Icon(Icons.radar, color: AppColors.primary),
-            label: 'Radar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history, color: AppColors.primary),
-            label: 'Riwayat',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded, color: AppColors.primary),
-            label: 'Profil',
-          ),
-        ],
-        onDestinationSelected: (i) {
-          if (i == 1) context.push('/calls');
-          if (i == 2) _showAccountMenu(context, user);
-        },
-      ),
-    );
-  }
-
-  String _accountInitial(UserModel? user) {
-    final email = user?.email.trim() ?? '';
-    return email.isEmpty ? '?' : email[0].toUpperCase();
-  }
-
-  String _roleLabel(UserModel? user) {
-    return switch (user?.role) {
-      'merchant' => 'Pedagang',
-      'admin' => 'Administrator',
-      _ => 'Pembeli',
-    };
-  }
-
-  void _showAccountMenu(BuildContext context, UserModel? user) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      _accountInitial(user),
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user?.email ?? 'Pengguna',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        _roleLabel(user),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Aktif',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            const Divider(height: 1, color: AppColors.divider),
-            if (user?.role == 'admin')
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.admin_panel_settings_outlined,
-                  color: AppColors.primary,
-                ),
-                title: const Text('Panel Admin'),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textHint,
-                  size: 20,
-                ),
-                onTap: () {
-                  context.pop();
-                  context.push('/admin/reports');
-                },
-              ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                Icons.logout_outlined,
-                color: AppColors.error,
-              ),
-              title: const Text(
-                'Keluar',
-                style: TextStyle(color: AppColors.error),
-              ),
-              onTap: () {
-                context.pop();
-                ref.read(authProvider.notifier).logout();
-              },
-            ),
-          ],
+      floatingActionButton: ScaleTransition(
+        scale: _fabScale,
+        child: FloatingActionButton(
+          heroTag: 'fab_location',
+          onPressed: _centerOnUser,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 2,
+          child: const Icon(Icons.my_location, size: 22),
         ),
       ),
     );
