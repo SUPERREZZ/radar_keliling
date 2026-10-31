@@ -13,8 +13,8 @@ class Call extends Model
     use HasFactory, HasUuids;
 
     public const STATUS_PENDING = 'pending';
-    public const STATUS_ACCEPTED = 'accepted';
-    public const STATUS_ANSWERED = 'accepted';
+    public const STATUS_ACCEPTED = 'accept';
+    public const STATUS_ANSWERED = 'accept';
     public const STATUS_UNANSWERED = 'unanswered';
     public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_COMPLETED = 'completed';

@@ -21,13 +21,16 @@ class VerifyEmailNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $verifyUrl = url('/api/v1/auth/verify-email?token='.urlencode($this->token));
+
         return (new MailMessage)
             ->subject('Verifikasi Email - Radar Keliling')
             ->greeting('Halo!')
             ->line('Terima kasih telah mendaftar di Radar Keliling.')
-            ->line('Kode verifikasi akun Anda adalah:')
+            ->action('Verifikasi Email Sekarang', $verifyUrl)
+            ->line('Atau gunakan kode verifikasi akun Anda:')
             ->line("**{$this->token}**")
-            ->line('Kode ini akan kedaluwarsa dalam 60 menit.')
+            ->line('Tautan dan kode ini akan kedaluwarsa dalam 60 menit.')
             ->line('Jika Anda tidak merasa mendaftar di Radar Keliling, abaikan email ini.');
     }
 }

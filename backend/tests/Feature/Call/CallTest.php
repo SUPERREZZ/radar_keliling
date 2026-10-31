@@ -192,9 +192,9 @@ class CallTest extends TestCase
         // Answer / Accept
         $response = $this->withToken($merchantToken)->postJson("/api/v1/calls/{$call->id}/accept");
         $response->assertOk()
-            ->assertJsonPath('data.status', 'accepted');
+            ->assertJsonPath('data.status', 'accept');
 
-        $this->assertEquals('accepted', $call->fresh()->status);
+        $this->assertEquals('accept', $call->fresh()->status);
         Event::assertDispatched(CallStatusUpdated::class);
 
         // Complete (sudah tiba di lokasi)
