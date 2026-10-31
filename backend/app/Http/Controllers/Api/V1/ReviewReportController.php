@@ -55,7 +55,8 @@ class ReviewReportController extends Controller
             $query->orderBy('created_at', 'desc');
         }
 
-        $reports = $query->get();
+        $limit = min(max((int) $request->query('limit', 100), 1), 200);
+        $reports = $query->limit($limit)->get();
 
         return response()->json([
             'data' => $reports->map(fn (ReviewReport $report) => [

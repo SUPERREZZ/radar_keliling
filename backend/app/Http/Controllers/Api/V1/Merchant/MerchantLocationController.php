@@ -91,48 +91,68 @@ class MerchantLocationController extends Controller
         $lng = (float) $validated['longitude'];
         $accuracy = (float) $validated['accuracy_m'];
         $recordedAt = $validated['recorded_at'] ?? now()->toIso8601String();
+        $timestamp = date('Y-m-d H:i:sP', strtotime($recordedAt));
 
-        // Hitung jarak pergeseran dari titik GPS sebelumnya menggunakan PostGIS ST_Distance
-        $previous = DB::selectOne('
-            SELECT ROUND(ST_Distance(
-                current_location,
-                ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography
-            )::numeric, 2) as distance_moved_m
-            FROM merchant_locations
-            WHERE merchant_id = ?
-        ', [$lng, $lat, $profile->id]);
-
-        $distanceMovedM = $previous ? (float) $previous->distance_moved_m : null;
-
-        MerchantLocation::updateCoordinates(
-            $profile->id,
-            $lat,
+        // Kalkulasi jarak pergeseran & upsert lokasi dalam 1 atomic CTE query PostGIS
+        $result = DB::selectOne('
+            WITH prev AS (
+                SELECT ROUND(ST_Distance(
+                    current_location,
+                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography
+                )::numeric, 2) AS distance_moved_m
+                FROM merchant_locations
+                WHERE merchant_id = ?
+            ),
+            upserted AS (
+                INSERT INTO merchant_locations (merchant_id, current_location, gps_accuracy_m, last_updated_at)
+                VALUES (?, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?, ?)
+                ON CONFLICT (merchant_id) DO UPDATE SET
+                    current_location = EXCLUDED.current_location,
+                    gps_accuracy_m = EXCLUDED.gps_accuracy_m,
+                    last_updated_at = EXCLUDED.last_updated_at
+                RETURNING merchant_id
+            )
+            SELECT p.distance_moved_m
+            FROM upserted u
+            LEFT JOIN prev p ON TRUE
+        ', [
             $lng,
+            $lat,
+            $profile->id,
+            $profile->id,
+            $lng,
+            $lat,
             $accuracy,
-            $recordedAt
-        );
+            $timestamp,
+        ]);
 
-        // Encode koordinat ke geohash grid (presisi 4)
-        $geohash = Geohash::encode($lat, $lng, 4);
+        $distanceMovedM = $result && $result->distance_moved_m !== null
+            ? (float) $result->distance_moved_m
+            : null;
+        $hasMoved5m = $distanceMovedM === null || $distanceMovedM >= 5.0;
 
-        // Broadcast event real-time ke WebSocket Reverb
-        broadcast(new MerchantLocationUpdated(
-            geohash: $geohash,
-            merchantId: $profile->id,
-            businessName: $profile->business_name,
-            latitude: $lat,
-            longitude: $lng,
-            gpsAccuracyM: $accuracy,
-            lastUpdatedAt: $recordedAt,
-            isSelling: (bool) $profile->is_selling,
-            distanceMovedM: $distanceMovedM
-        ));
+        // Broadcast event real-time ke WebSocket Reverb ketika lokasi awal atau bergeser >= 5 meter
+        if ($hasMoved5m) {
+            $geohash = Geohash::encode($lat, $lng, 4);
+
+            broadcast(new MerchantLocationUpdated(
+                geohash: $geohash,
+                merchantId: $profile->id,
+                businessName: $profile->business_name,
+                latitude: $lat,
+                longitude: $lng,
+                gpsAccuracyM: $accuracy,
+                lastUpdatedAt: $recordedAt,
+                isSelling: (bool) $profile->is_selling,
+                distanceMovedM: $distanceMovedM
+            ));
+        }
 
         return response()->json([
             'data' => [
                 'message' => 'Lokasi berhasil diperbarui.',
                 'distance_moved_m' => $distanceMovedM,
-                'has_moved_5m' => $distanceMovedM === null || $distanceMovedM >= 5.0,
+                'has_moved_5m' => $hasMoved5m,
             ],
         ]);
     }

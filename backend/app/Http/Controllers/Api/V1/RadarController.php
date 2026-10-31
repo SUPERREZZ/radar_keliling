@@ -8,6 +8,7 @@ use App\Models\DemandLog;
 use App\Services\Geohash;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class RadarController extends Controller
@@ -38,9 +39,14 @@ class RadarController extends Controller
         $search = isset($validated['search']) ? trim((string) $validated['search']) : null;
         $sort = strtolower((string) ($validated['sort'] ?? 'distance'));
 
-        // Rekam riwayat pencarian pembeli untuk analitik spatial heatmap
+        // Rekam riwayat pencarian pembeli untuk analitik spatial heatmap (di-throttle 60 detik per user & grid ~100m)
         try {
-            DemandLog::record($latitude, $longitude, $request->query('category') ?? $search);
+            $categoryLog = $request->query('category') ?? $search;
+            $actorKey = $user?->id ?? $request->ip();
+            $gridKey = round($latitude, 3).':'.round($longitude, 3).':'.strtolower((string) $categoryLog);
+            if (Cache::add("demand_log:{$actorKey}:{$gridKey}", 1, 60)) {
+                DemandLog::record($latitude, $longitude, $categoryLog);
+            }
         } catch (\Throwable) {
             // Abaikan jika pencatatan analitik gagal agar request utama tidak terganggu
         }
@@ -49,8 +55,6 @@ class RadarController extends Controller
             $longitude,
             $latitude,
             $staleSeconds,
-            $longitude,
-            $latitude,
             $radius,
         ];
 
@@ -81,36 +85,38 @@ class RadarController extends Controller
             default => 'distance_m ASC',
         };
 
-        // Query geospasial PostGIS
+        $limit = min(max((int) $request->query('limit', 50), 1), 100);
+        $bindings[] = $limit;
+
+        // Query geospasial PostGIS teroptimasi (1x evaluasi buyer_pt + LEFT JOIN agregat rating)
         $results = DB::select("
             SELECT
                 mp.id AS merchant_id,
                 mp.business_name,
                 ST_Y(ml.current_location::geometry) AS latitude,
                 ST_X(ml.current_location::geometry) AS longitude,
-                ROUND(ST_Distance(
-                    ml.current_location,
-                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography
-                )::numeric, 1) AS distance_m,
+                ROUND(ST_Distance(ml.current_location, pt.buyer_pt)::numeric, 1) AS distance_m,
                 ml.gps_accuracy_m,
                 ml.last_updated_at,
                 mp.is_selling,
-                COALESCE((
-                    SELECT ROUND(AVG(r.rating)::numeric, 1)
-                    FROM reviews r
-                    WHERE r.merchant_id = mp.id AND r.moderation_status = 'visible'
-                ), 0.0) AS average_rating
+                COALESCE(rev.avg_rating, 0.0) AS average_rating
             FROM merchant_profiles mp
             INNER JOIN merchant_locations ml ON ml.merchant_id = mp.id
+            CROSS JOIN (
+                SELECT ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography AS buyer_pt
+            ) pt
+            LEFT JOIN (
+                SELECT merchant_id, ROUND(AVG(rating)::numeric, 1) AS avg_rating
+                FROM reviews
+                WHERE moderation_status = 'visible'
+                GROUP BY merchant_id
+            ) rev ON rev.merchant_id = mp.id
             WHERE mp.is_selling = TRUE
               AND ml.last_updated_at >= NOW() - (? || ' seconds')::interval
-              AND ST_DWithin(
-                    ml.current_location,
-                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography,
-                    ?
-              )
+              AND ST_DWithin(ml.current_location, pt.buyer_pt, ?)
               {$searchClause}
             ORDER BY {$orderByClause}
+            LIMIT ?
         ", $bindings);
 
         $merchants = array_map(function ($row) {

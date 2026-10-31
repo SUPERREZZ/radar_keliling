@@ -153,10 +153,9 @@ class MenuController extends Controller
         $profile = $request->user()->merchantProfile;
         $menu = $profile->menus()->with('photos')->findOrFail($id);
 
-        foreach ($menu->photos as $photo) {
-            if ($photo->storage_path && Storage::disk('public')->exists($photo->storage_path)) {
-                Storage::disk('public')->delete($photo->storage_path);
-            }
+        $paths = $menu->photos->pluck('storage_path')->filter()->values()->all();
+        if (! empty($paths)) {
+            Storage::disk('public')->delete($paths);
         }
 
         $menu->delete();

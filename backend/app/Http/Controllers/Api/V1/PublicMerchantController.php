@@ -14,7 +14,11 @@ class PublicMerchantController extends Controller
 {
     public function show(string $id): PublicMerchantResource
     {
-        $merchant = MerchantProfile::findOrFail($id);
+        $merchant = MerchantProfile::withCount([
+            'reviews as total_reviews' => fn ($q) => $q->where('moderation_status', 'visible'),
+        ])->withAvg([
+            'reviews as average_rating' => fn ($q) => $q->where('moderation_status', 'visible'),
+        ], 'rating')->findOrFail($id);
 
         return new PublicMerchantResource($merchant);
     }
@@ -57,17 +61,17 @@ class PublicMerchantController extends Controller
 
     public function rating(string $id): JsonResponse
     {
-        $merchant = MerchantProfile::findOrFail($id);
-
-        $visibleReviews = $merchant->reviews()->where('moderation_status', 'visible');
-        $totalReviews = $visibleReviews->count();
-        $avgRating = $totalReviews > 0 ? round((float) $visibleReviews->avg('rating'), 1) : 0.0;
+        $merchant = MerchantProfile::withCount([
+            'reviews as total_reviews' => fn ($q) => $q->where('moderation_status', 'visible'),
+        ])->withAvg([
+            'reviews as average_rating' => fn ($q) => $q->where('moderation_status', 'visible'),
+        ], 'rating')->findOrFail($id);
 
         return response()->json([
             'data' => [
                 'merchant_id' => $merchant->id,
-                'average_rating' => $avgRating,
-                'total_reviews' => $totalReviews,
+                'average_rating' => $merchant->average_rating,
+                'total_reviews' => $merchant->total_reviews,
             ],
         ]);
     }

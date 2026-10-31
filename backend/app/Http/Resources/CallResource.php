@@ -10,14 +10,18 @@ class CallResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $buyerLat = $this->buyer_latitude ?? null;
-        $buyerLng = $this->buyer_longitude ?? null;
-        $distanceM = $this->distance_m ?? null;
+        $attributes = $this->resource->getAttributes();
+        $hasPreloadedCoords = array_key_exists('buyer_latitude', $attributes)
+            && array_key_exists('buyer_longitude', $attributes);
+
+        $buyerLat = $attributes['buyer_latitude'] ?? null;
+        $buyerLng = $attributes['buyer_longitude'] ?? null;
+        $distanceM = $attributes['distance_m'] ?? null;
 
         $consentValid = (bool) $this->location_consent
             && ($this->location_expires_at === null || $this->location_expires_at->isFuture());
 
-        if ($consentValid && ($buyerLat === null || $buyerLng === null)) {
+        if ($consentValid && ! $hasPreloadedCoords && ($buyerLat === null || $buyerLng === null)) {
             $coords = DB::selectOne('
                 SELECT
                     ST_Y(c.buyer_location::geometry) AS lat,
@@ -42,8 +46,8 @@ class CallResource extends JsonResource
             'buyer_id' => $this->buyer_id,
             'status' => $this->status,
             'location_consent' => (bool) $this->location_consent,
-            'buyer_latitude' => $consentValid ? $buyerLat : null,
-            'buyer_longitude' => $consentValid ? $buyerLng : null,
+            'buyer_latitude' => $consentValid && $buyerLat !== null ? (float) $buyerLat : null,
+            'buyer_longitude' => $consentValid && $buyerLng !== null ? (float) $buyerLng : null,
             'distance_m' => $consentValid && $distanceM !== null ? (float) $distanceM : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'has_review' => (bool) $this->has_review,

@@ -57,8 +57,29 @@ class Call extends Model
         return $this->hasOne(Review::class, 'call_id');
     }
 
+    public function scopeWithSpatialAndReview($query)
+    {
+        return $query
+            ->leftJoin('merchant_locations as ml', 'ml.merchant_id', '=', 'calls.merchant_id')
+            ->select('calls.*')
+            ->selectRaw('
+                ST_Y(calls.buyer_location::geometry) AS buyer_latitude,
+                ST_X(calls.buyer_location::geometry) AS buyer_longitude,
+                ROUND(ST_Distance(calls.buyer_location, ml.current_location)::numeric, 1) AS distance_m,
+                EXISTS(SELECT 1 FROM reviews r WHERE r.call_id = calls.id) AS has_review_flag
+            ');
+    }
+
     public function getHasReviewAttribute(): bool
     {
+        if (array_key_exists('has_review_flag', $this->attributes)) {
+            return (bool) $this->attributes['has_review_flag'];
+        }
+
+        if (array_key_exists('has_review', $this->attributes)) {
+            return (bool) $this->attributes['has_review'];
+        }
+
         return $this->relationLoaded('review')
             ? $this->review !== null
             : $this->review()->exists();
