@@ -31,5 +31,16 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'storeToken']);
         Route::delete('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'deleteToken']);
+
+        // Merchant Profile
+        Route::prefix('merchant')->middleware('merchant')->group(function () {
+            Route::get('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'show']);
+            Route::put('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'update']);
+            Route::post('/profile/photo', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'uploadPhoto']);
+        });
+
+        // Public merchant endpoints
+        Route::get('/merchants/{id}', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'show']);
+        Route::get('/merchants/{id}/rating', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'rating']);
     });
 });
