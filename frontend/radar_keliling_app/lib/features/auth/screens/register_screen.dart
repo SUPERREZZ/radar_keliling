@@ -24,8 +24,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   bool _loading = false;
 
   late AnimationController _animCtrl;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
 
   @override
   void initState() {
@@ -34,11 +34,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
+    _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
       begin: const Offset(0, 0.06),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
   }
 
@@ -74,7 +74,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       showRkSnackbar(context, e.message, isError: true);
     } catch (_) {
       if (!mounted) return;
-      showRkSnackbar(context, 'Registrasi gagal. Coba lagi.', isError: true);
+      showRkSnackbar(context, 'Pendaftaran gagal. Coba lagi.', isError: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -84,99 +84,160 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Buat Akun'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          onPressed: () => context.pop(),
-        ),
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: FadeTransition(
-            opacity: _fadeAnim,
-            child: SlideTransition(
-              position: _slideAnim,
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Daftar sebagai',
+        child: Column(
+          children: [
+            // ── Top bar ──────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    onPressed: () => context.pop(),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Buat Akun',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    _RoleSelector(
-                      selected: _selectedRole,
-                      onChanged: (r) => setState(() => _selectedRole = r),
-                    ),
-                    const SizedBox(height: 24),
-                    RkTextField(
-                      label: 'Email',
-                      controller: _emailCtrl,
-                      keyboardType: TextInputType.emailAddress,
-                      prefixIcon: Icons.mail_outline,
-                      textInputAction: TextInputAction.next,
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Email wajib diisi';
-                        if (!v.contains('@')) return 'Email tidak valid';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    RkTextField(
-                      label: 'Kata sandi',
-                      controller: _passCtrl,
-                      obscureText: true,
-                      prefixIcon: Icons.lock_outline,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _submit(),
-                      validator: (v) {
-                        if (v == null || v.length < 8) {
-                          return 'Kata sandi minimal 8 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Gunakan kombinasi huruf, angka, dan simbol.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Form ─────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                child: FadeTransition(
+                  opacity: _fade,
+                  child: SlideTransition(
+                    position: _slide,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Daftar sebagai',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _RoleSelector(
+                            selected: _selectedRole,
+                            onChanged: (r) => setState(() => _selectedRole = r),
+                          ),
+                          const SizedBox(height: 26),
+                          const _SectionLabel('Informasi Akun'),
+                          const SizedBox(height: 12),
+                          RkTextField(
+                            label: 'Email',
+                            controller: _emailCtrl,
+                            keyboardType: TextInputType.emailAddress,
+                            prefixIcon: Icons.mail_outline_rounded,
+                            textInputAction: TextInputAction.next,
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'Email wajib diisi';
+                              }
+                              if (!v.contains('@')) {
+                                return 'Email tidak valid';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          RkTextField(
+                            label: 'Kata sandi',
+                            controller: _passCtrl,
+                            obscureText: true,
+                            prefixIcon: Icons.lock_outline_rounded,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _submit(),
+                            validator: (v) {
+                              if (v == null || v.length < 8) {
+                                return 'Minimal 8 karakter';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Gunakan kombinasi huruf, angka, dan simbol untuk keamanan.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textHint,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          RkButton(
+                            label: 'Buat Akun',
+                            onPressed: _submit,
+                            isLoading: _loading,
+                            icon: Icons.person_add_rounded,
+                          ),
+                          const SizedBox(height: 18),
+                          Center(
+                            child: TextButton(
+                              onPressed: () => context.pop(),
+                              child: RichText(
+                                text: const TextSpan(
+                                  text: 'Sudah punya akun? ',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 14,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: 'Masuk',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    RkButton(
-                      label: 'Buat Akun',
-                      onPressed: _submit,
-                      isLoading: _loading,
-                      icon: Icons.person_add_outlined,
-                    ),
-                    const SizedBox(height: 20),
-                    Center(
-                      child: TextButton(
-                        onPressed: () => context.pop(),
-                        child: const Text(
-                          'Sudah punya akun? Masuk',
-                          style: TextStyle(color: AppColors.primary),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
+        letterSpacing: 0.1,
       ),
     );
   }
@@ -194,7 +255,8 @@ class _RoleSelector extends StatelessWidget {
         _RoleCard(
           role: 'buyer',
           label: 'Pembeli',
-          icon: Icons.person_search_outlined,
+          subtitle: 'Cari pedagang terdekat',
+          icon: Icons.person_search_rounded,
           isSelected: selected == 'buyer',
           onTap: () => onChanged('buyer'),
         ),
@@ -202,7 +264,8 @@ class _RoleSelector extends StatelessWidget {
         _RoleCard(
           role: 'merchant',
           label: 'Pedagang',
-          icon: Icons.storefront_outlined,
+          subtitle: 'Tampil di radar pembeli',
+          icon: Icons.storefront_rounded,
           isSelected: selected == 'merchant',
           onTap: () => onChanged('merchant'),
         ),
@@ -215,12 +278,15 @@ class _RoleCard extends StatelessWidget {
   const _RoleCard({
     required this.role,
     required this.label,
+    required this.subtitle,
     required this.icon,
     required this.isSelected,
     required this.onTap,
   });
+
   final String role;
   final String label;
+  final String subtitle;
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
@@ -229,39 +295,73 @@ class _RoleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryLight : AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          gradient: isSelected
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primaryLight, Color(0xFFD1F0E3)],
+                )
+              : null,
+          color: isSelected ? null : AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.divider,
             width: isSelected ? 1.5 : 1,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [],
         ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  icon,
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
-                  size: 26,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isSelected ? Colors.white : AppColors.primary,
+                    size: 22,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 12),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                     color: isSelected
                         ? AppColors.primary
-                        : AppColors.textSecondary,
+                        : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    height: 1.3,
                   ),
                 ),
               ],
