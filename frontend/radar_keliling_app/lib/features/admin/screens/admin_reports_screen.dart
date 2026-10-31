@@ -26,7 +26,7 @@ class AdminReportsScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
-            onPressed: () => ref.refresh(adminReportsProvider),
+            onPressed: () => ref.invalidate(adminReportsProvider),
             tooltip: 'Refresh',
           ),
         ],
@@ -43,7 +43,7 @@ class AdminReportsScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               const Text('Gagal memuat laporan'),
               TextButton(
-                onPressed: () => ref.refresh(adminReportsProvider),
+                onPressed: () => ref.invalidate(adminReportsProvider),
                 child: const Text('Coba lagi'),
               ),
             ],
@@ -163,7 +163,7 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
           .patch(Endpoints.adminHideReview(widget.report.reviewId));
       if (!mounted) return;
       showRkSnackbar(context, 'Ulasan berhasil disembunyikan.');
-      ref.refresh(adminReportsProvider);
+      ref.invalidate(adminReportsProvider);
     } catch (_) {
       if (!mounted) return;
       showRkSnackbar(context, 'Gagal menyembunyikan ulasan.',

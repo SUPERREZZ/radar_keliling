@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/services/merchant_service.dart';
 import '../../../core/models/merchant_model.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../providers/merchant_profile_provider.dart';
