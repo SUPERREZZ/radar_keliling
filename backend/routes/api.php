@@ -51,6 +51,9 @@ Route::prefix('v1')->group(function () {
             Route::delete('/menus/{id}', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'destroy']);
             Route::post('/menus/{id}/photos', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'uploadPhoto']);
             Route::delete('/menu-photos/{id}', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'deletePhoto']);
+
+            // Smart Buyer Hotspots (Heatmap for Merchant)
+            Route::get('/radar/buyer-hotspots', [\App\Http\Controllers\Api\V1\HeatmapController::class, 'merchantHotspots']);
         });
 
         // Public merchant endpoints
@@ -86,4 +89,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/merchants/{id}', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'show']);
     Route::get('/merchants/{id}/menus', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'menus']);
     Route::get('/merchants/{id}/rating', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'rating']);
+
+    // Predictive Demand Heatmap (Spatial PostGIS AI)
+    Route::get('/heatmap', [\App\Http\Controllers\Api\V1\HeatmapController::class, 'index']);
 });

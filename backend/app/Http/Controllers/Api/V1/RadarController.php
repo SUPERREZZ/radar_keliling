@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Models\DemandLog;
 use App\Services\Geohash;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,13 @@ class RadarController extends Controller
         $longitude = (float) $validated['longitude'];
         $radius = min((int) ($validated['radius'] ?? config('radar.default_radius_m', 3000)), 3000);
         $staleSeconds = (int) config('radar.stale_seconds', 30);
+
+        // Rekam riwayat pencarian pembeli untuk analitik spatial heatmap
+        try {
+            DemandLog::record($latitude, $longitude, $request->query('category'));
+        } catch (\Throwable) {
+            // Abaikan jika pencatatan analitik gagal agar request utama tidak terganggu
+        }
 
         // Query geospasial PostGIS
         $results = DB::select("
