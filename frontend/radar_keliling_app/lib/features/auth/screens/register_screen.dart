@@ -31,7 +31,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.06),
@@ -50,16 +52,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    final email = _emailCtrl.text.trim();
+
     setState(() => _loading = true);
     try {
-      await ref.read(authProvider.notifier).register(
-            email: _emailCtrl.text.trim(),
+      await ref
+          .read(authProvider.notifier)
+          .register(
+            email: email,
             password: _passCtrl.text,
             role: _selectedRole,
           );
       if (!mounted) return;
-      context.pushReplacement(
-          '/verify?email=${Uri.encodeComponent(_emailCtrl.text.trim())}');
+      context.go(
+        '/verify?email=${Uri.encodeComponent(email)}',
+        extra: _passCtrl.text,
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       showRkSnackbar(context, e.message, isError: true);
@@ -140,7 +149,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                     const Text(
                       'Gunakan kombinasi huruf, angka, dan simbol.',
                       style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary),
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 28),
                     RkButton(
@@ -235,11 +246,13 @@ class _RoleCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Column(
               children: [
-                Icon(icon,
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    size: 26),
+                Icon(
+                  icon,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  size: 26,
+                ),
                 const SizedBox(height: 6),
                 Text(
                   label,

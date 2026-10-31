@@ -9,7 +9,10 @@ import '../../../shared/widgets/rk_snackbar.dart';
 import '../../../shared/theme/app_theme.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.initialEmail});
+
+  /// Email yang sudah diisi otomatis (mis. setelah verifikasi).
+  final String? initialEmail;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -29,6 +32,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void initState() {
     super.initState();
+    final initialEmail = widget.initialEmail?.trim();
+    if (initialEmail != null && initialEmail.isNotEmpty) {
+      _emailCtrl.text = initialEmail;
+    }
     _animCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -51,15 +58,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    final email = _emailCtrl.text.trim();
+
     setState(() => _loading = true);
     try {
-      await ref.read(authProvider.notifier).login(
-            email: _emailCtrl.text.trim(),
-            password: _passCtrl.text,
-          );
+      final user = await ref
+          .read(authProvider.notifier)
+          .login(email: email, password: _passCtrl.text);
+      if (!mounted) return;
+      context.go(user.homeRoute);
     } on ApiException catch (e) {
       if (!mounted) return;
-      showRkSnackbar(context, e.message, isError: true);
+
+      final needsVerification =
+          e.code == 'EMAIL_NOT_VERIFIED' ||
+          e.message.toLowerCase().contains('belum diverifikasi');
+      if (needsVerification) {
+        showRkSnackbar(
+          context,
+          'Email belum diverifikasi. Kami arahkan ke halaman verifikasi.',
+        );
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (!mounted) return;
+        context.go(
+          '/verify?email=${Uri.encodeComponent(email)}',
+          extra: _passCtrl.text,
+        );
+      } else {
+        showRkSnackbar(context, e.message, isError: true);
+      }
     } catch (_) {
       if (!mounted) return;
       showRkSnackbar(context, 'Gagal login. Coba lagi.', isError: true);
@@ -93,8 +121,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         color: AppColors.primaryLight,
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(Icons.radar,
-                          color: AppColors.primary, size: 30),
+                      child: const Icon(
+                        Icons.radar,
+                        color: AppColors.primary,
+                        size: 30,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     const Text(
@@ -137,7 +168,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Kata sandi wajib diisi';
+                        if (v == null || v.isEmpty) {
+                          return 'Kata sandi wajib diisi';
+                        }
                         return null;
                       },
                     ),

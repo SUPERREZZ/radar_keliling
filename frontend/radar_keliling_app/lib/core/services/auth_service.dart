@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../api/endpoints.dart';
@@ -12,51 +13,46 @@ class AuthService {
   AuthService(this._api);
   final DioClient _api;
 
-  /// Register — returns null on success, throws ApiException on failure.
+  /// Register — throws [ApiException] on failure.
   Future<void> register({
     required String email,
     required String password,
     required String role,
   }) async {
-    await _api.post(Endpoints.register, data: {
-      'email': email,
-      'password': password,
-      'role': role,
-    });
+    await _api.post(
+      Endpoints.register,
+      data: {'email': email, 'password': password, 'role': role},
+    );
   }
 
-  /// Login — saves session, returns UserModel.
+  /// Login — saves session, returns [UserModel].
   Future<UserModel> login({
     required String email,
     required String password,
   }) async {
-    print('[AuthService] Login attempt: $email');
-    final res = await _api.post(Endpoints.login, data: {
-      'email': email,
-      'password': password,
-    });
-    
-    print('[AuthService] Login response: ${res.statusCode}');
+    final res = await _api.post(
+      Endpoints.login,
+      data: {'email': email, 'password': password},
+    );
+
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
     final token = data['token'] as String;
     final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
-    
-    print('[AuthService] Token received: ${token.substring(0, 20)}...');
-    print('[AuthService] User: ${user.email} (${user.role})');
-    
-    await SecureStorage.saveSession(
-      token: token,
-      role: user.role,
-      userId: user.id,
-      email: user.email,
-    );
-    
-    print('[AuthService] Session saved to SecureStorage');
-    
-    // Verify token was saved
-    final savedToken = await SecureStorage.getToken();
-    print('[AuthService] Verify saved token: ${savedToken != null ? "✓ Found" : "✗ Not found!"}');
-    
+
+    try {
+      await SecureStorage.saveSession(
+        token: token,
+        role: user.role,
+        userId: user.id,
+        email: user.email,
+      );
+    } catch (e) {
+      // Login tetap berhasil walau penyimpanan sesi bermasalah
+      // (mis. web di konteks non-HTTPS). User cukup login ulang nanti.
+      debugPrint('[AuthService] Gagal menyimpan sesi: $e');
+    }
+
+    debugPrint('[AuthService] Login berhasil: ${user.email} (${user.role})');
     return user;
   }
 
@@ -66,7 +62,11 @@ class AuthService {
     } catch (_) {
       // Token sudah tidak valid — tetap lanjut hapus sesi lokal.
     } finally {
-      await SecureStorage.clearSession();
+      try {
+        await SecureStorage.clearSession();
+      } catch (_) {
+        // Abaikan — sesi lokal mungkin sudah tidak ada.
+      }
     }
   }
 
@@ -80,8 +80,10 @@ class AuthService {
     await _api.post(Endpoints.emailVerify, data: {'token': token});
   }
 
-  Future<void> resendVerification() async {
-    await _api.post(Endpoints.emailResend);
+  Future<String?> resendVerification({required String email}) async {
+    final res = await _api.post(Endpoints.emailResend, data: {'email': email});
+    final data = (res.data as Map)['data'];
+    return data is Map ? data['message']?.toString() : null;
   }
 
   Future<void> registerFcmToken(String fcmToken) async {

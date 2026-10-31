@@ -65,7 +65,7 @@ Fitur verifikasi email sudah **lengkap dan terintegrasi** dengan backend API pro
 1. User di halaman /verify
 2. User belum terima email atau email kedaluwarsa
 3. User klik "Kirim Ulang Email"
-4. App call POST /v1/auth/resend-verification
+4. App call POST /v1/auth/resend-verification dengan body {"email": "user@example.com"}
 5. Backend kirim email baru dengan token baru
 6. Success indicator muncul
 7. User lanjut dengan Skenario 1 atau 2
@@ -184,14 +184,14 @@ Future<void> verifyEmail(String token) async {
 }
 
 // Resend verification email
-Future<void> resendVerification() async {
-  await _api.post(Endpoints.emailResend);
+Future<void> resendVerification({required String email}) async {
+  await _api.post(Endpoints.emailResend, data: {'email': email});
 }
 ```
 
 **API Endpoints:**
 - `POST /v1/auth/verify-email` → Body: `{"token": "abc123"}`
-- `POST /v1/auth/resend-verification` → No body (uses auth token)
+- `POST /v1/auth/resend-verification` → Body: `{"email": "user@example.com"}`
 
 ---
 
