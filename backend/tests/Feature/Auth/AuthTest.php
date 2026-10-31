@@ -132,5 +132,16 @@ class AuthTest extends TestCase
             'role' => 'buyer',
         ])->assertStatus(201);
     }
-}
 
+    public function test_v1_alias_without_api_prefix_works(): void
+    {
+        User::factory()->create(['email' => 'buyer@example.com']);
+
+        $this->postJson('/v1/auth/login', [
+            'email' => 'buyer@example.com',
+            'password' => 'password',
+        ])->assertOk()
+            ->assertJsonPath('data.token_type', 'Bearer')
+            ->assertJsonPath('data.user.email', 'buyer@example.com');
+    }
+}

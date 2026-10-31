@@ -17,28 +17,24 @@ class DemandLogSeeder extends Seeder
             ['lat' => -7.2850, 'lng' => 112.7350, 'name' => 'Kawasan Hunian & Kuliner Malam', 'categories' => ['martabak', 'makanan', 'bakso']],
         ];
 
-        // Jam-jam puncak aktivitas pembeli
-        $peakHours = [
-            8, 9,        // Sarapan pagi
-            11, 12, 13,  // Jam makan siang kantor & kampus
-            15, 16, 17,  // Jam jajan sore
-            19, 20, 21,  // Jam makan malam
-        ];
-
-        // Jam saat ini untuk memastikan heatmap langsung menyala saat demo
-        $currentHour = (int) now()->format('G');
-        if (! in_array($currentHour, $peakHours, true)) {
-            $peakHours[] = $currentHour;
-        }
-
         $now = now();
         $batch = [];
 
-        foreach ($clusters as $cluster) {
-            foreach ($peakHours as $hour) {
-                // Tiap klaster memiliki 20 - 45 titik pencarian per jam puncak
-                $pointsCount = rand(25, 45);
+        // Seed seluruh 24 jam (0-23) dengan distribusi realistis agar heatmap selalu hidup kapanpun demo dijalankan
+        for ($hour = 0; $hour < 24; $hour++) {
+            // Intensitas permintaan dinamis sesuai ritme aktivitas harian
+            $pointsCount = match (true) {
+                // Jam makan siang & sore-malam (puncak tertinggi)
+                in_array($hour, [11, 12, 13, 17, 18, 19, 20], true) => rand(30, 45),
+                // Jam sarapan & sore
+                in_array($hour, [7, 8, 9, 10, 14, 15, 16, 21], true) => rand(15, 25),
+                // Jam kuliner larut malam
+                in_array($hour, [22, 23], true) => rand(8, 15),
+                // Jam dini hari / subuh
+                default => rand(2, 6),
+            };
 
+            foreach ($clusters as $cluster) {
                 for ($i = 0; $i < $pointsCount; $i++) {
                     // Beri offset acak sekitar 50 - 300 meter dari pusat klaster
                     $latOffset = (rand(-250, 250) / 100000.0);
@@ -49,7 +45,7 @@ class DemandLogSeeder extends Seeder
 
                     $category = $cluster['categories'][array_rand($cluster['categories'])];
 
-                    // Set waktu tepat di jam tersebut
+                    // Set waktu tepat di jam tersebut pada hari ini
                     $time = $now->copy()->setHour($hour)->setMinute(rand(0, 59))->setSecond(rand(0, 59));
 
                     $batch[] = sprintf(

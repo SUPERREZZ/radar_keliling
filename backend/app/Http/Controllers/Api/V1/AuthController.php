@@ -57,13 +57,23 @@ class AuthController extends Controller
         ]);
     }
 
-    public function verifyEmail(Request $request): JsonResponse
+    public function verifyEmail(Request $request): JsonResponse|Response
     {
-        $request->validate([
-            'token' => ['required', 'string'],
-        ]);
+        $token = $request->input('token');
 
-        $tokenHash = hash('sha256', trim((string) $request->token));
+        if (! $token) {
+            if (! $request->expectsJson()) {
+                return response()->view('emails.verified-failed', [
+                    'message' => 'Token verifikasi tidak disertakan.',
+                ], 400);
+            }
+
+            $request->validate([
+                'token' => ['required', 'string'],
+            ]);
+        }
+
+        $tokenHash = hash('sha256', trim((string) $token));
 
         $verification = EmailVerificationToken::where('token_hash', $tokenHash)
             ->whereNull('used_at')
@@ -71,6 +81,12 @@ class AuthController extends Controller
             ->first();
 
         if (! $verification) {
+            if (! $request->expectsJson()) {
+                return response()->view('emails.verified-failed', [
+                    'message' => 'Token verifikasi tidak valid atau telah kedaluwarsa.',
+                ], 400);
+            }
+
             throw new ApiException('INVALID_VERIFICATION_TOKEN', 'Token verifikasi tidak valid atau telah kedaluwarsa.', 400);
         }
 
@@ -78,6 +94,12 @@ class AuthController extends Controller
 
         $user = $verification->user;
         $user->update(['email_verified' => true]);
+
+        if (! $request->expectsJson()) {
+            return response()->view('emails.verified-success', [
+                'user' => $user,
+            ], 200);
+        }
 
         return response()->json([
             'data' => [

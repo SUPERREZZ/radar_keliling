@@ -122,5 +122,32 @@ class EmailVerificationTest extends TestCase
         $this->assertStringContainsString('Verifikasi Email Sekarang', $renderedHtml);
         $this->assertStringContainsString('api/v1/auth/verify-email?token=123456', $renderedHtml);
     }
+
+    public function test_verify_email_via_browser_html_success(): void
+    {
+        $user = User::factory()->unverified()->create(['email' => 'budi.santoso@example.com']);
+        $token = EmailVerificationToken::createForUser($user);
+
+        $response = $this->get('/api/v1/auth/verify-email?token='.$token, [
+            'Accept' => 'text/html,application/xhtml+xml',
+        ]);
+
+        $response->assertOk();
+        $response->assertViewIs('emails.verified-success');
+        $response->assertSee('Email Berhasil Diverifikasi!');
+        $response->assertSee('budi.santoso@example.com');
+        $this->assertTrue($user->fresh()->email_verified);
+    }
+
+    public function test_verify_email_via_browser_html_invalid_token(): void
+    {
+        $response = $this->get('/api/v1/auth/verify-email?token=token-salah-123', [
+            'Accept' => 'text/html,application/xhtml+xml',
+        ]);
+
+        $response->assertStatus(400);
+        $response->assertViewIs('emails.verified-failed');
+        $response->assertSee('Tautan Tidak Valid atau Kedaluwarsa');
+    }
 }
 
