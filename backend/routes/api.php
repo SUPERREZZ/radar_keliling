@@ -60,5 +60,15 @@ Route::prefix('v1')->group(function () {
 
         // Radar Endpoints (Buyer)
         Route::get('/radar/merchants', [\App\Http\Controllers\Api\V1\RadarController::class, 'merchants']);
+
+        // Call Endpoints
+        Route::post('/calls', [\App\Http\Controllers\Api\V1\CallController::class, 'store']);
+        Route::get('/calls', [\App\Http\Controllers\Api\V1\CallController::class, 'index']);
+        Route::get('/calls/{id}', [\App\Http\Controllers\Api\V1\CallController::class, 'show']);
+        Route::post('/calls/{id}/answer', [\App\Http\Controllers\Api\V1\CallController::class, 'answer']);
+        Route::post('/calls/{id}/accept', [\App\Http\Controllers\Api\V1\CallController::class, 'accept']);
+        Route::post('/calls/{id}/unanswered', [\App\Http\Controllers\Api\V1\CallController::class, 'unanswered']);
+        Route::post('/calls/{id}/cancel', [\App\Http\Controllers\Api\V1\CallController::class, 'cancel']);
+        Route::post('/calls/{id}/complete', [\App\Http\Controllers\Api\V1\CallController::class, 'complete']);
     });
 });

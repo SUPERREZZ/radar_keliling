@@ -92,6 +92,18 @@ class MerchantLocationController extends Controller
         $accuracy = (float) $validated['accuracy_m'];
         $recordedAt = $validated['recorded_at'] ?? now()->toIso8601String();
 
+        // Hitung jarak pergeseran dari titik GPS sebelumnya menggunakan PostGIS ST_Distance
+        $previous = DB::selectOne('
+            SELECT ROUND(ST_Distance(
+                current_location,
+                ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography
+            )::numeric, 2) as distance_moved_m
+            FROM merchant_locations
+            WHERE merchant_id = ?
+        ', [$lng, $lat, $profile->id]);
+
+        $distanceMovedM = $previous ? (float) $previous->distance_moved_m : null;
+
         MerchantLocation::updateCoordinates(
             $profile->id,
             $lat,
@@ -112,12 +124,15 @@ class MerchantLocationController extends Controller
             longitude: $lng,
             gpsAccuracyM: $accuracy,
             lastUpdatedAt: $recordedAt,
-            isSelling: (bool) $profile->is_selling
+            isSelling: (bool) $profile->is_selling,
+            distanceMovedM: $distanceMovedM
         ));
 
         return response()->json([
             'data' => [
                 'message' => 'Lokasi berhasil diperbarui.',
+                'distance_moved_m' => $distanceMovedM,
+                'has_moved_5m' => $distanceMovedM === null || $distanceMovedM >= 5.0,
             ],
         ]);
     }

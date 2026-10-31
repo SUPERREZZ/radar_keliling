@@ -21,6 +21,7 @@ class MerchantLocationUpdated implements ShouldBroadcastNow
         public readonly float $gpsAccuracyM,
         public readonly string $lastUpdatedAt,
         public readonly bool $isSelling,
+        public readonly ?float $distanceMovedM = null,
     ) {
     }
 
@@ -46,6 +47,7 @@ class MerchantLocationUpdated implements ShouldBroadcastNow
             'gps_accuracy_m' => $this->gpsAccuracyM,
             'last_updated_at' => $this->lastUpdatedAt,
             'is_selling' => $this->isSelling,
+            'distance_moved_m' => $this->distanceMovedM,
         ];
     }
 }

@@ -12,3 +12,14 @@ Broadcast::channel('radar.{geohash}', function (User $user) {
 Broadcast::channel('merchant.{merchantId}', function (User $user, string $merchantId) {
     return (string) $user->merchantProfile?->id === (string) $merchantId || (string) $user->id === (string) $merchantId;
 });
+
+// Private channel untuk status update panggilan (buyer dan merchant terkait)
+Broadcast::channel('call.{callId}', function (User $user, string $callId) {
+    $call = \App\Models\Call::find($callId);
+    if (! $call) {
+        return false;
+    }
+
+    return (string) $user->id === (string) $call->buyer_id
+        || (string) $user->merchantProfile?->id === (string) $call->merchant_id;
+});
