@@ -129,14 +129,20 @@ jobs:
           script: |
             echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Gunakan ~ (home directory) sebagai ganti /root
-            cd ~/radar_keliling/backend
+            cd ~
             
-            # Tarik pembaruan file konfigurasi dari repo (sesuaikan nama branch)
-            git pull origin backend-dev
+            # Hapus folder repo lama secara paksa jika ada, agar bersih
+            rm -rf radar_keliling
             
-            # Tarik image terbaru dan restart container
+            # Kloning ulang repo spesifik pada branch backend-dev
+            git clone -b backend-dev https://github.com/SUPERREZZ/radar_keliling.git
+            
+            cd radar_keliling/backend
+            
+            # Tarik image terbaru dari GHCR
             docker compose pull app reverb
+            
+            # Jalankan container di background
             docker compose up -d
             
             # Eksekusi migrasi di background tanpa interaksi
