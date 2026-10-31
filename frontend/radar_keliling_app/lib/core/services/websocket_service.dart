@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pusher_channels_flutter/pusher_channels_flutter.dart';
 import '../../config/app_config.dart';
@@ -22,29 +23,28 @@ class WebSocketService {
     _onReconnect = onReconnect;
 
     _pusher = PusherChannelsFlutter.getInstance();
-    await _pusher!.init(
-      apiKey: AppConfig.reverbAppKey,
-      cluster: 'mt1', // tidak dipakai Reverb, tapi required
-      wsHost: AppConfig.wsHost,
-      wsPort: AppConfig.wsPort,
-      useTLS: AppConfig.wsTls,
-      authEndpoint: '${AppConfig.baseUrl}/broadcasting/auth',
-      onAuthorizer: _handleAuth,
-      onConnectionStateChange: (current, previous) {
-        if (current == 'CONNECTED' && previous == 'DISCONNECTED') {
-          _onReconnect?.call();
-        }
-      },
-    );
-    await _pusher!.connect();
-  }
-
-  Future<dynamic> _handleAuth(String channelName, String socketId) async {
-    // Reverb butuh Bearer token di request auth
-    final token = await SecureStorage.getToken();
-    return {
-      'headers': {'Authorization': 'Bearer $token'},
-    };
+    
+    try {
+      await _pusher!.init(
+        apiKey: AppConfig.reverbAppKey,
+        cluster: 'mt1',
+        // onAuthorizer signature: dynamic Function(String channelName, String socketId, dynamic options)
+        onAuthorizer: (channelName, socketId, options) async {
+          final token = await SecureStorage.getToken();
+          return {
+            'headers': {'Authorization': 'Bearer $token'},
+          };
+        },
+        onConnectionStateChange: (current, previous) {
+          if (current == 'CONNECTED' && previous == 'DISCONNECTED') {
+            _onReconnect?.call();
+          }
+        },
+      );
+      await _pusher!.connect();
+    } catch (e) {
+      debugPrint('WebSocket connection error: $e');
+    }
   }
 
   Future<void> subscribeToChannels(List<String> channels) async {
