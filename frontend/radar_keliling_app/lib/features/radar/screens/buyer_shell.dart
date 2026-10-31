@@ -107,7 +107,6 @@ class _AnimatedBottomNavState extends State<_AnimatedBottomNav>
     with TickerProviderStateMixin {
   late List<AnimationController> _ctrls;
   late List<Animation<double>> _scales;
-  late List<Animation<double>> _labelFades;
 
   @override
   void initState() {
@@ -126,14 +125,6 @@ class _AnimatedBottomNavState extends State<_AnimatedBottomNav>
             begin: 0.85,
             end: 1.0,
           ).animate(CurvedAnimation(parent: c, curve: Curves.easeOutBack)),
-        )
-        .toList();
-    _labelFades = _ctrls
-        .map(
-          (c) => Tween<double>(
-            begin: 0.0,
-            end: 1.0,
-          ).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
         )
         .toList();
   }
@@ -211,21 +202,18 @@ class _AnimatedBottomNavState extends State<_AnimatedBottomNav>
                           ),
                         ),
                         const SizedBox(height: 3),
-                        FadeTransition(
-                          opacity: _labelFades[i],
-                          child: AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 180),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.textSecondary,
-                            ),
-                            child: Text(tab.label),
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 180),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
                           ),
+                          child: Text(tab.label),
                         ),
                       ],
                     );
