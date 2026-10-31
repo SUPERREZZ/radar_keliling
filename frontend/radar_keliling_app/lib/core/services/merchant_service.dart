@@ -2,8 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../api/endpoints.dart';
-import '../models/merchant_model.dart';
 import '../models/menu_model.dart';
+import '../models/merchant_model.dart';
+import '../models/review_model.dart';
 
 final merchantServiceProvider = Provider<MerchantService>(
   (ref) => MerchantService(ref.read(apiClientProvider)),
@@ -93,6 +94,18 @@ class MerchantService {
     final res = await _api.get(Endpoints.merchantRating(merchantId));
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
     return MerchantRating.fromJson(data);
+  }
+
+  Future<List<ReviewModel>> getReviews(String merchantId) async {
+    try {
+      final res = await _api.get(Endpoints.merchantReviews(merchantId));
+      final list = (res.data as Map)['data'] as List? ?? [];
+      return list
+          .map((e) => ReviewModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   // ── Menu CRUD ─────────────────────────────────────────────

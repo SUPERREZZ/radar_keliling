@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/models/merchant_model.dart';
+
 import '../../../core/models/menu_model.dart';
+import '../../../core/models/merchant_model.dart';
+import '../../../core/models/review_model.dart';
 import '../../../core/services/merchant_service.dart';
 
 final merchantPublicProfileProvider =
@@ -14,6 +16,11 @@ final merchantMenusProvider = FutureProvider.family<List<MenuItem>, String>((
 ) {
   return ref.read(merchantServiceProvider).getMenus(merchantId);
 });
+
+final merchantReviewsProvider =
+    FutureProvider.family<List<ReviewModel>, String>((ref, merchantId) {
+      return ref.read(merchantServiceProvider).getReviews(merchantId);
+    });
 
 final merchantSelfProfileProvider = FutureProvider<MerchantSelfProfile>((ref) {
   return ref.read(merchantServiceProvider).getSelfProfile();

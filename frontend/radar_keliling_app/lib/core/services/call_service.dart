@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../api/api_client.dart';
 import '../api/endpoints.dart';
 import '../models/call_model.dart';
@@ -29,7 +30,6 @@ class CallService {
       },
     );
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
-    // Backend response untuk create call pakai 'call_id', bukan 'id'
     if (!data.containsKey('id') && data.containsKey('call_id')) {
       data['id'] = data['call_id'];
     }
@@ -59,6 +59,12 @@ class CallService {
   // Merchant actions
   Future<CallModel> acceptCall(String id) async {
     final res = await _api.post(Endpoints.callAnswer(id));
+    final data = (res.data as Map)['data'] as Map<String, dynamic>;
+    return CallModel.fromJson(data);
+  }
+
+  Future<CallModel> completeCall(String id) async {
+    final res = await _api.post(Endpoints.callComplete(id));
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
     return CallModel.fromJson(data);
   }
