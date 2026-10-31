@@ -38,6 +38,11 @@ Route::prefix('v1')->group(function () {
             Route::put('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'update']);
             Route::post('/profile/photo', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'uploadPhoto']);
 
+            // Selling Status & Location
+            Route::post('/selling/start', [\App\Http\Controllers\Api\V1\Merchant\MerchantLocationController::class, 'startSelling']);
+            Route::post('/selling/stop', [\App\Http\Controllers\Api\V1\Merchant\MerchantLocationController::class, 'stopSelling']);
+            Route::put('/location', [\App\Http\Controllers\Api\V1\Merchant\MerchantLocationController::class, 'updateLocation']);
+
             // Menu Management
             Route::get('/menus', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'index']);
             Route::get('/menus/{id}', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'show']);

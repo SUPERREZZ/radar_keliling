@@ -37,6 +37,11 @@ class MerchantProfile extends Model
         return $this->hasMany(Menu::class, 'merchant_id');
     }
 
+    public function location()
+    {
+        return $this->hasOne(MerchantLocation::class, 'merchant_id');
+    }
+
     public function getProfilePhotoUrlAttribute(): ?string
     {
         if (! $this->profile_photo_path) {
