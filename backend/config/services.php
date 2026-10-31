@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'fcm' => [
+        'enabled' => (bool) env('FCM_ENABLED', false),
+        'project_id' => env('FCM_PROJECT_ID'),
+        'credentials_path' => env('FCM_CREDENTIALS_PATH', 'storage/app/firebase-service-account.json'),
+        'access_token' => env('FCM_ACCESS_TOKEN'),
+        'server_key' => env('FCM_SERVER_KEY'),
+    ],
+
 ];

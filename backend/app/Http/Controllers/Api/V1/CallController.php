@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CallResource;
 use App\Models\Call;
 use App\Models\MerchantProfile;
+use App\Services\FcmService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -16,6 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class CallController extends Controller
 {
+    public function __construct(
+        private readonly FcmService $fcmService
+    ) {}
+
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -103,6 +108,14 @@ class CallController extends Controller
             ', [$bLng, $bLat, $call->id]);
         }
 
+        // Pre-populate spatial & review attributes to avoid extra DB queries in CallResource
+        $call->setRawAttributes(array_merge($call->getAttributes(), [
+            'buyer_latitude' => $validated['share_location'] ? $bLat : null,
+            'buyer_longitude' => $validated['share_location'] ? $bLng : null,
+            'distance_m' => $validated['share_location'] ? $distanceM : null,
+            'has_review_flag' => false,
+        ]));
+
         // Broadcast event real-time ke pedagang via WebSocket Reverb
         broadcast(new IncomingCall(
             merchantId: $merchant->id,
@@ -112,6 +125,21 @@ class CallController extends Controller
             locationShared: (bool) $validated['share_location']
         ));
 
+        // Kirim Push Notification FCM ke perangkat pedagang (jika FCM diaktifkan)
+        if ($merchant->user_id) {
+            $this->fcmService->sendToUser(
+                userId: (string) $merchant->user_id,
+                title: 'Panggilan Pembeli Baru!',
+                body: sprintf('Ada pembeli di sekitar Anda (~%.0f meter) yang memanggil dagangan Anda.', $distanceM),
+                data: [
+                    'type' => 'incoming_call',
+                    'call_id' => (string) $call->id,
+                    'merchant_id' => (string) $merchant->id,
+                    'distance_m' => (string) $distanceM,
+                ]
+            );
+        }
+
         return (new CallResource($call))->response()->setStatusCode(201);
     }
 
@@ -119,14 +147,15 @@ class CallController extends Controller
     {
         $user = $request->user();
 
+        $query = Call::query()->withSpatialAndReview();
+
         if ($user->isMerchant()) {
             $merchantId = $user->merchantProfile?->id;
             if (! $merchantId) {
                 return CallResource::collection(collect());
             }
-            $query = Call::where('calls.merchant_id', $merchantId);
+            $query->where('calls.merchant_id', $merchantId);
         } elseif ($user->isAdmin()) {
-            $query = Call::query();
             if ($request->filled('merchant_id')) {
                 $query->where('calls.merchant_id', $request->query('merchant_id'));
             }
@@ -134,7 +163,7 @@ class CallController extends Controller
                 $query->where('calls.buyer_id', $request->query('buyer_id'));
             }
         } else {
-            $query = Call::where('calls.buyer_id', $user->id);
+            $query->where('calls.buyer_id', $user->id);
         }
 
         // Filter berdasarkan status panggilan (mendukung single atau comma-separated)
@@ -171,10 +200,7 @@ class CallController extends Controller
 
             case 'nearest':
             case 'distance':
-                $query->leftJoin('merchant_locations as ml', 'ml.merchant_id', '=', 'calls.merchant_id')
-                    ->select('calls.*')
-                    ->selectRaw('ROUND(ST_Distance(calls.buyer_location, ml.current_location)::numeric, 1) as distance_m')
-                    ->orderByRaw('ST_Distance(calls.buyer_location, ml.current_location) ASC NULLS LAST, calls.created_at DESC');
+                $query->orderByRaw('ST_Distance(calls.buyer_location, ml.current_location) ASC NULLS LAST, calls.created_at DESC');
                 break;
 
             case 'oldest':
@@ -194,13 +220,15 @@ class CallController extends Controller
                 break;
         }
 
-        return CallResource::collection($query->get());
+        $limit = min(max((int) $request->query('limit', 100), 1), 200);
+
+        return CallResource::collection($query->limit($limit)->get());
     }
 
     public function show(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
-        $call = Call::findOrFail($id);
+        $call = Call::withSpatialAndReview()->where('calls.id', $id)->firstOrFail();
 
         $isOwner = (string) $call->buyer_id === (string) $user->id
             || (string) $call->merchant_id === (string) $user->merchantProfile?->id
@@ -216,7 +244,7 @@ class CallController extends Controller
     public function answer(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
-        $call = Call::findOrFail($id);
+        $call = Call::withSpatialAndReview()->where('calls.id', $id)->firstOrFail();
 
         if ((string) $call->merchant_id !== (string) $user->merchantProfile?->id && ! $user->isAdmin()) {
             throw new ApiException('FORBIDDEN', 'Hanya pedagang yang dipanggil yang dapat menerima panggilan.', 403);
@@ -227,10 +255,22 @@ class CallController extends Controller
         }
 
         $call->update(['status' => Call::STATUS_ACCEPTED]);
+        $call->status = Call::STATUS_ACCEPTED;
 
         broadcast(new CallStatusUpdated($call->id, Call::STATUS_ACCEPTED, $call->merchant_id));
 
-        return (new CallResource($call->fresh()))->response()->setStatusCode(200);
+        $this->fcmService->sendToUser(
+            userId: (string) $call->buyer_id,
+            title: 'Panggilan Diterima!',
+            body: 'Pedagang telah menerima panggilan Anda dan sedang menuju lokasi.',
+            data: [
+                'type' => 'call_status_updated',
+                'call_id' => (string) $call->id,
+                'status' => Call::STATUS_ACCEPTED,
+            ]
+        );
+
+        return (new CallResource($call))->response()->setStatusCode(200);
     }
 
     public function accept(Request $request, string $id): JsonResponse
@@ -241,7 +281,7 @@ class CallController extends Controller
     public function complete(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
-        $call = Call::findOrFail($id);
+        $call = Call::withSpatialAndReview()->where('calls.id', $id)->firstOrFail();
 
         if ((string) $call->merchant_id !== (string) $user->merchantProfile?->id && ! $user->isAdmin()) {
             throw new ApiException('FORBIDDEN', 'Hanya pedagang yang dipanggil yang dapat menyelesaikan transaksi panggilan.', 403);
@@ -252,16 +292,28 @@ class CallController extends Controller
         }
 
         $call->update(['status' => Call::STATUS_COMPLETED]);
+        $call->status = Call::STATUS_COMPLETED;
 
         broadcast(new CallStatusUpdated($call->id, Call::STATUS_COMPLETED, $call->merchant_id));
 
-        return (new CallResource($call->fresh()))->response()->setStatusCode(200);
+        $this->fcmService->sendToUser(
+            userId: (string) $call->buyer_id,
+            title: 'Transaksi Selesai',
+            body: 'Terima kasih! Jangan lupa berikan ulasan untuk pedagang.',
+            data: [
+                'type' => 'call_status_updated',
+                'call_id' => (string) $call->id,
+                'status' => Call::STATUS_COMPLETED,
+            ]
+        );
+
+        return (new CallResource($call))->response()->setStatusCode(200);
     }
 
     public function unanswered(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
-        $call = Call::findOrFail($id);
+        $call = Call::withSpatialAndReview()->where('calls.id', $id)->firstOrFail();
 
         if ((string) $call->merchant_id !== (string) $user->merchantProfile?->id && ! $user->isAdmin()) {
             throw new ApiException('FORBIDDEN', 'Hanya pedagang yang dipanggil yang dapat menolak panggilan.', 403);
@@ -272,16 +324,28 @@ class CallController extends Controller
         }
 
         $call->update(['status' => Call::STATUS_UNANSWERED]);
+        $call->status = Call::STATUS_UNANSWERED;
 
         broadcast(new CallStatusUpdated($call->id, Call::STATUS_UNANSWERED, $call->merchant_id));
 
-        return (new CallResource($call->fresh()))->response()->setStatusCode(200);
+        $this->fcmService->sendToUser(
+            userId: (string) $call->buyer_id,
+            title: 'Panggilan Belum Terjawab',
+            body: 'Maaf, pedagang sedang sibuk atau belum dapat menerima panggilan Anda.',
+            data: [
+                'type' => 'call_status_updated',
+                'call_id' => (string) $call->id,
+                'status' => Call::STATUS_UNANSWERED,
+            ]
+        );
+
+        return (new CallResource($call))->response()->setStatusCode(200);
     }
 
     public function cancel(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
-        $call = Call::findOrFail($id);
+        $call = Call::withSpatialAndReview()->where('calls.id', $id)->firstOrFail();
 
         if ((string) $call->buyer_id !== (string) $user->id && ! $user->isAdmin()) {
             throw new ApiException('FORBIDDEN', 'Hanya pembeli pemanggil yang dapat membatalkan panggilan.', 403);
@@ -292,9 +356,10 @@ class CallController extends Controller
         }
 
         $call->update(['status' => Call::STATUS_CANCELLED]);
+        $call->status = Call::STATUS_CANCELLED;
 
         broadcast(new CallStatusUpdated($call->id, Call::STATUS_CANCELLED, $call->merchant_id));
 
-        return (new CallResource($call->fresh()))->response()->setStatusCode(200);
+        return (new CallResource($call))->response()->setStatusCode(200);
     }
 }

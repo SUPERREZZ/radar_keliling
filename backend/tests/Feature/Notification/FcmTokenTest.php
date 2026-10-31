@@ -4,7 +4,9 @@ namespace Tests\Feature\Notification;
 
 use App\Models\FcmToken;
 use App\Models\User;
+use App\Services\FcmService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class FcmTokenTest extends TestCase
@@ -138,6 +140,43 @@ class FcmTokenTest extends TestCase
         $this->deleteJson('/api/v1/auth/fcm-token')
             ->assertStatus(401)
             ->assertJsonPath('error.code', 'UNAUTHENTICATED');
+    }
+
+    public function test_fcm_service_sends_push_and_prunes_unregistered_tokens(): void
+    {
+        config([
+            'services.fcm.enabled' => true,
+            'services.fcm.project_id' => 'radar-keliling-test',
+            'services.fcm.access_token' => 'fake-oauth-access-token',
+        ]);
+
+        $user = User::factory()->create();
+        FcmToken::create(['user_id' => $user->id, 'token' => 'valid-device-token']);
+        FcmToken::create(['user_id' => $user->id, 'token' => 'stale-unregistered-token']);
+
+        Http::fake([
+            'https://fcm.googleapis.com/v1/projects/radar-keliling-test/messages:send' => function ($request) {
+                $token = $request->data()['message']['token'] ?? '';
+                if ($token === 'stale-unregistered-token') {
+                    return Http::response([
+                        'error' => [
+                            'code' => 404,
+                            'status' => 'NOT_FOUND',
+                            'details' => [['errorCode' => 'UNREGISTERED']],
+                        ],
+                    ], 404);
+                }
+
+                return Http::response(['name' => 'projects/radar-keliling-test/messages/1'], 200);
+            },
+        ]);
+
+        $service = app(FcmService::class);
+        $sent = $service->sendToUser($user->id, 'Test Title', 'Test Body', ['call_id' => '123']);
+
+        $this->assertEquals(1, $sent);
+        $this->assertDatabaseHas('fcm_tokens', ['token' => 'valid-device-token']);
+        $this->assertDatabaseMissing('fcm_tokens', ['token' => 'stale-unregistered-token']);
     }
 }
 
