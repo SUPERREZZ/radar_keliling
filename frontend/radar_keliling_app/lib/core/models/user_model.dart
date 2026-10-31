@@ -15,17 +15,24 @@ class UserModel {
   bool get isMerchant => role == 'merchant';
   bool get isAdmin => role == 'admin';
 
+  /// Halaman utama sesuai role pengguna.
+  String get homeRoute {
+    if (isAdmin) return '/admin/reports';
+    if (isMerchant) return '/selling';
+    return '/radar';
+  }
+
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-        id: json['id'] as String,
-        email: json['email'] as String,
-        role: json['role'] as String,
-        emailVerified: json['email_verified'] as bool,
-      );
+    id: json['id'] as String,
+    email: json['email'] as String,
+    role: json['role'] as String,
+    emailVerified: json['email_verified'] as bool,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'role': role,
-        'email_verified': emailVerified,
-      };
+    'id': id,
+    'email': email,
+    'role': role,
+    'email_verified': emailVerified,
+  };
 }

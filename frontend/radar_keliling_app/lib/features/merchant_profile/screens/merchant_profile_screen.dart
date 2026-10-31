@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../config/app_config.dart';
 import '../../../core/models/merchant_model.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../providers/merchant_profile_provider.dart';
@@ -12,20 +13,19 @@ class MerchantProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync =
-        ref.watch(merchantPublicProfileProvider(merchantId));
+    final profileAsync = ref.watch(merchantPublicProfileProvider(merchantId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: profileAsync.when(
         loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
-                  color: AppColors.error, size: 40),
+              const Icon(Icons.error_outline, color: AppColors.error, size: 40),
               const SizedBox(height: 12),
               const Text('Gagal memuat profil'),
               TextButton(
@@ -36,16 +36,15 @@ class MerchantProfileScreen extends ConsumerWidget {
             ],
           ),
         ),
-        data: (profile) => _ProfileContent(
-            merchantId: merchantId, profile: profile),
+        data: (profile) =>
+            _ProfileContent(merchantId: merchantId, profile: profile),
       ),
     );
   }
 }
 
 class _ProfileContent extends ConsumerWidget {
-  const _ProfileContent(
-      {required this.merchantId, required this.profile});
+  const _ProfileContent({required this.merchantId, required this.profile});
   final String merchantId;
   final MerchantProfile profile;
 
@@ -65,20 +64,20 @@ class _ProfileContent extends ConsumerWidget {
                 color: Colors.white.withOpacity(0.9),
                 shape: BoxShape.circle,
               ),
-              child:
-                  const Icon(Icons.arrow_back_ios_new, size: 16),
+              child: const Icon(Icons.arrow_back_ios_new, size: 16),
             ),
             onPressed: () => context.pop(),
           ),
           flexibleSpace: FlexibleSpaceBar(
             background: profile.profilePhotoUrl != null
                 ? CachedNetworkImage(
-                    imageUrl: profile.profilePhotoUrl!,
+                    imageUrl: AppConfig.resolveMediaUrl(
+                      profile.profilePhotoUrl!,
+                    ),
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                        color: AppColors.primaryLight),
-                    errorWidget: (_, __, ___) =>
-                        _PhotoPlaceholder(),
+                    placeholder: (_, __) =>
+                        Container(color: AppColors.primaryLight),
+                    errorWidget: (_, __, ___) => _PhotoPlaceholder(),
                   )
                 : _PhotoPlaceholder(),
           ),
@@ -109,7 +108,9 @@ class _ProfileContent extends ConsumerWidget {
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: profile.isSelling
                             ? AppColors.primaryLight
@@ -136,8 +137,11 @@ class _ProfileContent extends ConsumerWidget {
                 // ── Rating ────────────────────────────────
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded,
-                        size: 16, color: AppColors.warning),
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 16,
+                      color: AppColors.warning,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       profile.averageRating.toStringAsFixed(1),
@@ -151,8 +155,9 @@ class _ProfileContent extends ConsumerWidget {
                     Text(
                       '(${profile.totalReviews} ulasan)',
                       style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary),
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -180,10 +185,10 @@ class _ProfileContent extends ConsumerWidget {
                     icon: const Icon(Icons.restaurant_menu, size: 18),
                     label: const Text('Lihat Menu & Harga'),
                     style: OutlinedButton.styleFrom(
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ),
@@ -202,8 +207,11 @@ class _PhotoPlaceholder extends StatelessWidget {
     return Container(
       color: AppColors.primaryLight,
       child: const Center(
-        child: Icon(Icons.storefront_outlined,
-            color: AppColors.primary, size: 60),
+        child: Icon(
+          Icons.storefront_outlined,
+          color: AppColors.primary,
+          size: 60,
+        ),
       ),
     );
   }

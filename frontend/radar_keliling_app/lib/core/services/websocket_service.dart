@@ -7,7 +7,8 @@ import '../utils/secure_storage.dart';
 
 final wsServiceProvider = Provider<WebSocketService>((_) => WebSocketService());
 
-typedef WsEventCallback = void Function(String eventName, Map<String, dynamic> data);
+typedef WsEventCallback =
+    void Function(String eventName, Map<String, dynamic> data);
 
 class WebSocketService {
   PusherChannelsFlutter? _pusher;
@@ -22,8 +23,15 @@ class WebSocketService {
     _onEvent = onEvent;
     _onReconnect = onReconnect;
 
+    if (AppConfig.reverbAppKey == 'YOUR_REVERB_APP_KEY') {
+      debugPrint(
+        '[WS] Reverb app key belum dikonfigurasi — realtime dilewati.',
+      );
+      return;
+    }
+
     _pusher = PusherChannelsFlutter.getInstance();
-    
+
     try {
       await _pusher!.init(
         apiKey: AppConfig.reverbAppKey,
@@ -54,8 +62,9 @@ class WebSocketService {
         channelName: ch,
         onEvent: (event) {
           try {
-            final data = jsonDecode(event.data as String? ?? '{}')
-                as Map<String, dynamic>;
+            final data =
+                jsonDecode(event.data as String? ?? '{}')
+                    as Map<String, dynamic>;
             _onEvent?.call(event.eventName, data);
           } catch (_) {}
         },

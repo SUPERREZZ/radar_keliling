@@ -23,10 +23,7 @@ class RadarService {
   }) async {
     final res = await _api.get(
       Endpoints.radarMerchants,
-      queryParameters: {
-        'latitude': latitude,
-        'longitude': longitude,
-      },
+      queryParameters: {'latitude': latitude, 'longitude': longitude},
     );
     final body = res.data as Map<String, dynamic>;
     final items = (body['data'] as List)

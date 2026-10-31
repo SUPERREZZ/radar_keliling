@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/websocket_service.dart';
-import '../../../features/auth/providers/auth_provider.dart';
 import '../providers/radar_provider.dart';
 import '../widgets/merchant_marker.dart';
 import '../widgets/merchant_bottom_sheet.dart';
@@ -24,6 +22,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
   final MapController _mapController = MapController();
   LatLng? _userLocation;
   bool _locationPermissionDenied = false;
+  double? _maxDistanceM;
 
   late AnimationController _fabAnim;
   late Animation<double> _fabScale;
@@ -57,7 +56,14 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
       _fabAnim.forward();
     }
 
-    await ref.read(radarProvider.notifier).loadRadar();
+    final loaded = await ref.read(radarProvider.notifier).loadRadar();
+    if (!loaded && mounted) {
+      showRkSnackbar(
+        context,
+        'Radar belum bisa dimuat. Pastikan GPS aktif lalu coba refresh.',
+        isError: true,
+      );
+    }
   }
 
   void _initWebSocket() {
@@ -76,7 +82,19 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
   }
 
   Future<void> _refreshRadar() async {
-    await ref.read(radarProvider.notifier).loadRadar();
+    final loaded = await ref
+        .read(radarProvider.notifier)
+        .loadRadar(keepExisting: true);
+    if (!mounted) return;
+    if (loaded) {
+      showRkSnackbar(context, 'Radar berhasil diperbarui.');
+    } else {
+      showRkSnackbar(
+        context,
+        'Radar belum bisa diperbarui. Pastikan GPS aktif lalu coba lagi.',
+        isError: true,
+      );
+    }
   }
 
   void _centerOnUser() {
@@ -95,9 +113,13 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authProvider).valueOrNull;
     final radarState = ref.watch(radarProvider);
     final merchants = radarState.valueOrNull ?? [];
+    final visibleMerchants = _maxDistanceM == null
+        ? merchants
+        : merchants
+              .where((m) => m.distanceM <= _maxDistanceM!)
+              .toList(growable: false);
 
     return Scaffold(
       body: Stack(
@@ -113,8 +135,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.radarkeliling.radar_keliling',
                 maxZoom: 18,
               ),
@@ -144,8 +165,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                         decoration: BoxDecoration(
                           color: Colors.blue,
                           shape: BoxShape.circle,
-                          border:
-                              Border.all(color: Colors.white, width: 2.5),
+                          border: Border.all(color: Colors.white, width: 2.5),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.blue.withOpacity(0.4),
@@ -159,7 +179,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                 ),
               // Marker pedagang
               MerchantMarkerLayer(
-                merchants: merchants,
+                merchants: visibleMerchants,
                 onTap: (m) => MerchantBottomSheet.show(context, m),
               ),
             ],
@@ -169,77 +189,124 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.radar,
-                              color: AppColors.primary, size: 20),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Radar Keliling',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (radarState.isLoading)
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary),
-                            )
-                          else
-                            Text(
-                              '${merchants.length} pedagang',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
                               ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Menu akun
-                  GestureDetector(
-                    onTap: () => _showAccountMenu(context, user?.role),
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                            ],
                           ),
-                        ],
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.radar,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Radar Keliling',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '${visibleMerchants.length} pedagang',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: const Icon(Icons.person_outline,
-                          color: AppColors.textPrimary, size: 20),
+                      const SizedBox(width: 10),
+                      // Refresh shortcut
+                      GestureDetector(
+                        onTap: _refreshRadar,
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: radarState.isLoading
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.refresh_rounded,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 36,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _MapFilterChip(
+                          label: 'Semua',
+                          selected: _maxDistanceM == null,
+                          onTap: () => setState(() => _maxDistanceM = null),
+                        ),
+                        const SizedBox(width: 8),
+                        _MapFilterChip(
+                          label: '< 500 m',
+                          selected: _maxDistanceM == 500,
+                          onTap: () => setState(() => _maxDistanceM = 500),
+                        ),
+                        const SizedBox(width: 8),
+                        _MapFilterChip(
+                          label: '< 1 km',
+                          selected: _maxDistanceM == 1000,
+                          onTap: () => setState(() => _maxDistanceM = 1000),
+                        ),
+                        const SizedBox(width: 8),
+                        _MapFilterChip(
+                          label: '< 2 km',
+                          selected: _maxDistanceM == 2000,
+                          onTap: () => setState(() => _maxDistanceM = 2000),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -261,14 +328,16 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.location_off_outlined,
-                        color: Colors.white, size: 20),
+                    Icon(
+                      Icons.location_off_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Izin lokasi ditolak. Aktifkan lokasi untuk melihat pedagang terdekat.',
-                        style:
-                            TextStyle(color: Colors.white, fontSize: 13),
+                        style: TextStyle(color: Colors.white, fontSize: 13),
                       ),
                     ),
                   ],
@@ -279,104 +348,57 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
       ),
 
       // ── FABs ─────────────────────────────────────────────
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Refresh
-          FloatingActionButton.small(
-            heroTag: 'fab_refresh',
-            onPressed: _refreshRadar,
-            backgroundColor: AppColors.surface,
-            foregroundColor: AppColors.primary,
-            elevation: 2,
-            child: const Icon(Icons.refresh, size: 20),
-          ),
-          const SizedBox(height: 10),
-          // Lokasi user
-          ScaleTransition(
-            scale: _fabScale,
-            child: FloatingActionButton(
-              heroTag: 'fab_location',
-              onPressed: _centerOnUser,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              child: const Icon(Icons.my_location, size: 22),
-            ),
-          ),
-        ],
-      ),
-
-      // ── Bottom nav ────────────────────────────────────────
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: AppColors.primaryLight,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.radar_outlined),
-            selectedIcon: Icon(Icons.radar, color: AppColors.primary),
-            label: 'Radar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon:
-                Icon(Icons.history, color: AppColors.primary),
-            label: 'Riwayat',
-          ),
-        ],
-        onDestinationSelected: (i) {
-          if (i == 1) context.push('/calls');
-        },
+      floatingActionButton: ScaleTransition(
+        scale: _fabScale,
+        child: FloatingActionButton(
+          heroTag: 'fab_location',
+          onPressed: _centerOnUser,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 2,
+          child: const Icon(Icons.my_location, size: 22),
+        ),
       ),
     );
   }
+}
 
-  void _showAccountMenu(BuildContext context, String? role) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            const SizedBox(height: 16),
-            if (role == 'admin')
-              ListTile(
-                leading: const Icon(Icons.admin_panel_settings_outlined,
-                    color: AppColors.primary),
-                title: const Text('Panel Admin'),
-                onTap: () {
-                  context.pop();
-                  context.push('/admin/reports');
-                },
-              ),
-            ListTile(
-              leading: const Icon(Icons.logout_outlined,
-                  color: AppColors.error),
-              title: const Text('Keluar',
-                  style: TextStyle(color: AppColors.error)),
-              onTap: () {
-                context.pop();
-                ref.read(authProvider.notifier).logout();
-              },
+class _MapFilterChip extends StatelessWidget {
+  const _MapFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.07),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.textSecondary,
+          ),
         ),
       ),
     );

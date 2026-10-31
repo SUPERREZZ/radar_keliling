@@ -11,17 +11,15 @@ return new class extends Migration
     {
         Schema::create('merchant_locations', function (Blueprint $table) {
             $table->uuid('merchant_id')->primary();
-            $table->geography('current_location', subtype: 'point', srid: 4326);
-            $table->float('gps_accuracy_m');
-            $table->timestampTz('last_updated_at')->index('idx_merchant_locations_updated');
+            // MySQL spatial POINT type (lat, lng)
+            $table->point('current_location')->spatialIndex();
+            $table->float('gps_accuracy_m')->unsigned();
+            $table->timestamp('last_updated_at')->index('idx_merchant_locations_updated');
 
             $table->foreign('merchant_id', 'fk_location_merchant')
                 ->references('id')->on('merchant_profiles')
                 ->cascadeOnDelete();
         });
-
-        DB::statement('ALTER TABLE merchant_locations ADD CONSTRAINT chk_gps_accuracy CHECK (gps_accuracy_m >= 0)');
-        DB::statement('CREATE INDEX idx_merchant_locations_gist ON merchant_locations USING GIST (current_location)');
     }
 
     public function down(): void

@@ -8,8 +8,36 @@ class AppConfig {
   static const bool isDemoMode = false;
 
   // ── REST API ──────────────────────────────────────────────
-  /// Base URL tanpa trailing slash.
-  static const String baseUrl = 'http://backend.jh-beon.cloud/api/v1';
+  /// Base URL tanpa trailing slash. Path endpoint sudah mengandung `/v1`.
+  static const String baseUrl = 'http://backend.jh-beon.cloud/api';
+
+  /// Origin backend untuk file statis (mis. foto profil/menu).
+  static String get _mediaOrigin {
+    final uri = Uri.parse(baseUrl);
+    return '${uri.scheme}://${uri.authority}';
+  }
+
+  /// Memperbaiki URL media yang masih menunjuk ke localhost atau relatif.
+  static String resolveMediaUrl(String url) {
+    final raw = url.trim();
+    if (raw.isEmpty) return raw;
+
+    final uri = Uri.tryParse(raw);
+    if (uri != null && uri.hasScheme) {
+      final isLocalHost =
+          uri.host == 'localhost' ||
+          uri.host == '127.0.0.1' ||
+          uri.host == '0.0.0.0';
+      if (!isLocalHost) return raw;
+
+      final path = uri.path.startsWith('/') ? uri.path : '/${uri.path}';
+      final query = uri.hasQuery ? '?${uri.query}' : '';
+      return '$_mediaOrigin$path$query';
+    }
+
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return '$_mediaOrigin$path';
+  }
 
   // ── WebSocket (Laravel Reverb) ────────────────────────────
   /// Host Reverb — minta ke tim backend.

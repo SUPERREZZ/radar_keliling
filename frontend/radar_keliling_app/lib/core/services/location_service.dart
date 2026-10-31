@@ -3,7 +3,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_config.dart';
 
-final locationServiceProvider = Provider<LocationService>((_) => LocationService());
+final locationServiceProvider = Provider<LocationService>(
+  (_) => LocationService(),
+);
 
 class LocationResult {
   const LocationResult({
@@ -72,16 +74,21 @@ class LocationService {
     }
   }
 
-  /// Mulai timer GPS untuk merchant — kirim ke stream setiap 10 detik.
+  /// Mulai timer GPS untuk merchant — kirim segera lalu setiap 10 detik.
   void startGpsUpdates() {
     _gpsTimer?.cancel();
+    _emitCurrentLocation();
     _gpsTimer = Timer.periodic(
       Duration(seconds: AppConfig.gpsUpdateIntervalSeconds),
-      (_) async {
-        final loc = await getCurrentLocation();
-        if (loc != null) _locationStream.add(loc);
-      },
+      (_) => _emitCurrentLocation(),
     );
+  }
+
+  Future<void> _emitCurrentLocation() async {
+    final loc = await getCurrentLocation();
+    if (loc != null && !_locationStream.isClosed) {
+      _locationStream.add(loc);
+    }
   }
 
   void stopGpsUpdates() {
@@ -90,11 +97,11 @@ class LocationService {
   }
 
   LocationResult _posToResult(Position pos) => LocationResult(
-        latitude: pos.latitude,
-        longitude: pos.longitude,
-        accuracyM: pos.accuracy,
-        recordedAt: DateTime.now().toUtc().toIso8601String(),
-      );
+    latitude: pos.latitude,
+    longitude: pos.longitude,
+    accuracyM: pos.accuracy,
+    recordedAt: DateTime.now().toUtc().toIso8601String(),
+  );
 
   void dispose() {
     _gpsTimer?.cancel();

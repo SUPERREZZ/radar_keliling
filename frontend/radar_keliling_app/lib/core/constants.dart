@@ -21,7 +21,12 @@ class AppConstants {
   static const String reportStatusResolved = 'resolved';
 
   // ── Foto format ───────────────────────────────────────────
-  static const List<String> allowedImageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+  static const List<String> allowedImageExtensions = [
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+  ];
   static const List<String> allowedImageMimeTypes = [
     'image/jpeg',
     'image/png',

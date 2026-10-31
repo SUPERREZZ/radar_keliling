@@ -5,15 +5,20 @@ import '../../../core/services/merchant_service.dart';
 
 final merchantPublicProfileProvider =
     FutureProvider.family<MerchantProfile, String>((ref, merchantId) {
-  return ref.read(merchantServiceProvider).getPublicProfile(merchantId);
-});
+      return ref.read(merchantServiceProvider).getPublicProfile(merchantId);
+    });
 
-final merchantMenusProvider =
-    FutureProvider.family<List<MenuItem>, String>((ref, merchantId) {
+final merchantMenusProvider = FutureProvider.family<List<MenuItem>, String>((
+  ref,
+  merchantId,
+) {
   return ref.read(merchantServiceProvider).getMenus(merchantId);
 });
 
-final merchantSelfProfileProvider =
-    FutureProvider<MerchantSelfProfile>((ref) {
+final merchantSelfProfileProvider = FutureProvider<MerchantSelfProfile>((ref) {
   return ref.read(merchantServiceProvider).getSelfProfile();
+});
+
+final merchantSelfMenusProvider = FutureProvider<List<MenuItem>>((ref) {
+  return ref.read(merchantServiceProvider).getSelfMenus();
 });

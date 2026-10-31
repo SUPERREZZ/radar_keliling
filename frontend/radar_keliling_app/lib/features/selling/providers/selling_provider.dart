@@ -2,18 +2,24 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/merchant_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final sellingProvider =
-    StateNotifierProvider<SellingNotifier, AsyncValue<bool>>(
-  (ref) => SellingNotifier(
-    ref.read(merchantServiceProvider),
-    ref.read(locationServiceProvider),
-  ),
-);
+    StateNotifierProvider<SellingNotifier, AsyncValue<bool>>((ref) {
+      final notifier = SellingNotifier(
+        ref.read(merchantServiceProvider),
+        ref.read(locationServiceProvider),
+      );
+      ref.listen(authProvider, (_, next) {
+        final user = next.valueOrNull;
+        if (user == null || !user.isMerchant) notifier.reset();
+      });
+      return notifier;
+    });
 
 class SellingNotifier extends StateNotifier<AsyncValue<bool>> {
   SellingNotifier(this._merchantService, this._locationService)
-      : super(const AsyncValue.data(false));
+    : super(const AsyncValue.data(false));
 
   final MerchantService _merchantService;
   final LocationService _locationService;
@@ -44,7 +50,7 @@ class SellingNotifier extends StateNotifier<AsyncValue<bool>> {
   }
 
   void _startGps() {
-    _locationService.startGpsUpdates();
+    _sub?.cancel();
     _sub = _locationService.locationStream.listen((loc) async {
       try {
         await _merchantService.updateLocation(
@@ -57,6 +63,7 @@ class SellingNotifier extends StateNotifier<AsyncValue<bool>> {
         // Kegagalan kirim GPS tidak menghentikan sesi berjualan
       }
     });
+    _locationService.startGpsUpdates();
   }
 
   void _stopGps() {
@@ -67,7 +74,23 @@ class SellingNotifier extends StateNotifier<AsyncValue<bool>> {
 
   void setInitialState(bool isSelling) {
     state = AsyncValue.data(isSelling);
-    if (isSelling) _startGps();
+    if (isSelling) {
+      _startGps();
+    } else {
+      _stopGps();
+    }
+  }
+
+  /// Kirim posisi terbaru dan mulai ulang timer setelah app kembali aktif.
+  void refreshHeartbeat() {
+    if (!isSelling) return;
+    _startGps();
+  }
+
+  /// Hentikan heartbeat tanpa memanggil backend (mis. logout/switch akun).
+  void reset() {
+    _stopGps();
+    state = const AsyncValue.data(false);
   }
 
   @override

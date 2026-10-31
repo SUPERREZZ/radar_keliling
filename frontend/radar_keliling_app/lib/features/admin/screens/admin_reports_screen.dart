@@ -33,13 +33,13 @@ class AdminReportsScreen extends ConsumerWidget {
       ),
       body: reportsAsync.when(
         loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (_, __) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
-                  size: 40, color: AppColors.error),
+              const Icon(Icons.error_outline, size: 40, color: AppColors.error),
               const SizedBox(height: 12),
               const Text('Gagal memuat laporan'),
               TextButton(
@@ -55,47 +55,55 @@ class AdminReportsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_outline,
-                      size: 48, color: AppColors.success),
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 48,
+                    color: AppColors.success,
+                  ),
                   SizedBox(height: 12),
-                  Text('Tidak ada laporan yang masuk',
-                      style:
-                          TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    'Tidak ada laporan yang masuk',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ],
               ),
             );
           }
 
-          final pending =
-              reports.where((r) => r.status == 'pending').toList();
-          final done =
-              reports.where((r) => r.status != 'pending').toList();
+          final pending = reports.where((r) => r.status == 'pending').toList();
+          final done = reports.where((r) => r.status != 'pending').toList();
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               if (pending.isNotEmpty) ...[
                 _SectionHeader(
-                    label: 'Perlu Ditinjau',
-                    count: pending.length,
-                    color: AppColors.warning),
+                  label: 'Perlu Ditinjau',
+                  count: pending.length,
+                  color: AppColors.warning,
+                ),
                 const SizedBox(height: 8),
-                ...pending.map((r) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ReportCard(report: r),
-                    )),
+                ...pending.map(
+                  (r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ReportCard(report: r),
+                  ),
+                ),
                 const SizedBox(height: 16),
               ],
               if (done.isNotEmpty) ...[
                 _SectionHeader(
-                    label: 'Sudah Ditangani',
-                    count: done.length,
-                    color: AppColors.textSecondary),
+                  label: 'Sudah Ditangani',
+                  count: done.length,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(height: 8),
-                ...done.map((r) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ReportCard(report: r, dimmed: true),
-                    )),
+                ...done.map(
+                  (r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ReportCard(report: r, dimmed: true),
+                  ),
+                ),
               ],
             ],
           );
@@ -106,8 +114,11 @@ class AdminReportsScreen extends ConsumerWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(
-      {required this.label, required this.count, required this.color});
+  const _SectionHeader({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
   final String label;
   final int count;
   final Color color;
@@ -126,8 +137,7 @@ class _SectionHeader extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
             color: color.withOpacity(0.12),
             borderRadius: BorderRadius.circular(20),
@@ -135,7 +145,10 @@ class _SectionHeader extends StatelessWidget {
           child: Text(
             '$count',
             style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: color),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -166,8 +179,7 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
       ref.invalidate(adminReportsProvider);
     } catch (_) {
       if (!mounted) return;
-      showRkSnackbar(context, 'Gagal menyembunyikan ulasan.',
-          isError: true);
+      showRkSnackbar(context, 'Gagal menyembunyikan ulasan.', isError: true);
     } finally {
       if (mounted) setState(() => _hiding = false);
     }
@@ -196,7 +208,9 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
                 Text(
                   _formatDate(widget.report.createdAt),
                   style: const TextStyle(
-                      fontSize: 11, color: AppColors.textHint),
+                    fontSize: 11,
+                    color: AppColors.textHint,
+                  ),
                 ),
               ],
             ),
@@ -214,8 +228,7 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
             const SizedBox(height: 4),
             Text(
               'Review ID: ${widget.report.reviewId.substring(0, 8).toUpperCase()}',
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textHint),
+              style: const TextStyle(fontSize: 11, color: AppColors.textHint),
             ),
 
             // Tombol sembunyikan — hanya untuk laporan pending
@@ -230,22 +243,23 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.error),
+                            strokeWidth: 2,
+                            color: AppColors.error,
+                          ),
                         )
-                      : const Icon(Icons.visibility_off_outlined,
-                          size: 16),
+                      : const Icon(Icons.visibility_off_outlined, size: 16),
                   label: const Text('Sembunyikan Ulasan'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
-                    side: const BorderSide(
-                        color: AppColors.error, width: 1),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 10),
+                    side: const BorderSide(color: AppColors.error, width: 1),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     textStyle: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -279,8 +293,7 @@ class _StatusBadge extends StatelessWidget {
       _ => (AppColors.textHint, status),
     };
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(8),
@@ -288,9 +301,10 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: color),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }

@@ -28,7 +28,9 @@ class _ReviewFormScreenState extends ConsumerState<ReviewFormScreen>
   void initState() {
     super.initState();
     _slideCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 450));
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.08),
       end: Offset.zero,
@@ -45,17 +47,23 @@ class _ReviewFormScreenState extends ConsumerState<ReviewFormScreen>
 
   Future<void> _submit() async {
     if (_rating == 0) {
-      showRkSnackbar(context, 'Pilih rating dulu sebelum mengirim.',
-          isError: true);
+      showRkSnackbar(
+        context,
+        'Pilih rating dulu sebelum mengirim.',
+        isError: true,
+      );
       return;
     }
     setState(() => _submitting = true);
     try {
-      await ref.read(callServiceProvider).submitReview(
+      await ref
+          .read(callServiceProvider)
+          .submitReview(
             callId: widget.callId,
             rating: _rating,
-            reviewText:
-                _textCtrl.text.trim().isEmpty ? null : _textCtrl.text.trim(),
+            reviewText: _textCtrl.text.trim().isEmpty
+                ? null
+                : _textCtrl.text.trim(),
           );
       if (!mounted) return;
       showRkSnackbar(context, 'Ulasan berhasil dikirim. Terima kasih!');
@@ -107,8 +115,7 @@ class _ReviewFormScreenState extends ConsumerState<ReviewFormScreen>
               const SizedBox(height: 8),
               const Text(
                 'Tap bintang untuk memberi penilaian.',
-                style: TextStyle(
-                    fontSize: 14, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
@@ -124,18 +131,19 @@ class _ReviewFormScreenState extends ConsumerState<ReviewFormScreen>
                       margin: const EdgeInsets.symmetric(horizontal: 6),
                       child: TweenAnimationBuilder<double>(
                         tween: Tween(
-                            begin: filled ? 0.8 : 1.0,
-                            end: filled ? 1.0 : 0.85),
+                          begin: filled ? 0.8 : 1.0,
+                          end: filled ? 1.0 : 0.85,
+                        ),
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.elasticOut,
                         builder: (_, scale, child) =>
                             Transform.scale(scale: scale, child: child),
                         child: Icon(
-                          filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                          filled
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
                           size: 46,
-                          color: filled
-                              ? AppColors.warning
-                              : AppColors.divider,
+                          color: filled ? AppColors.warning : AppColors.divider,
                         ),
                       ),
                     ),
@@ -194,28 +202,31 @@ class _ReviewFormScreenState extends ConsumerState<ReviewFormScreen>
                 maxLines: 4,
                 maxLength: 500,
                 style: const TextStyle(
-                    fontSize: 14, color: AppColors.textPrimary),
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
                 decoration: InputDecoration(
-                  hintText:
-                      'Tulis ulasanmu di sini... (max 500 karakter)',
+                  hintText: 'Tulis ulasanmu di sini... (max 500 karakter)',
                   hintStyle: const TextStyle(
-                      color: AppColors.textHint, fontSize: 14),
+                    color: AppColors.textHint,
+                    fontSize: 14,
+                  ),
                   filled: true,
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        const BorderSide(color: AppColors.divider),
+                    borderSide: const BorderSide(color: AppColors.divider),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        const BorderSide(color: AppColors.divider),
+                    borderSide: const BorderSide(color: AppColors.divider),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: const BorderSide(
-                        color: AppColors.primary, width: 1.5),
+                      color: AppColors.primary,
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -224,9 +235,10 @@ class _ReviewFormScreenState extends ConsumerState<ReviewFormScreen>
               const Text(
                 'Ulasan bersifat anonim — pedagang tidak tahu siapa yang menulis.',
                 style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textHint,
-                    height: 1.4),
+                  fontSize: 12,
+                  color: AppColors.textHint,
+                  height: 1.4,
+                ),
               ),
 
               const SizedBox(height: 28),
@@ -245,11 +257,11 @@ class _ReviewFormScreenState extends ConsumerState<ReviewFormScreen>
   }
 
   String get _ratingLabel => switch (_rating) {
-        1 => '😞  Sangat Buruk',
-        2 => '😕  Buruk',
-        3 => '😐  Cukup',
-        4 => '😊  Bagus',
-        5 => '🤩  Sangat Bagus!',
-        _ => '',
-      };
+    1 => '😞  Sangat Buruk',
+    2 => '😕  Buruk',
+    3 => '😐  Cukup',
+    4 => '😊  Bagus',
+    5 => '🤩  Sangat Bagus!',
+    _ => '',
+  };
 }

@@ -7,8 +7,10 @@ import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/rk_button.dart';
 import '../../../shared/widgets/rk_snackbar.dart';
 
-final _callDetailProvider =
-    FutureProvider.family<CallModel, String>((ref, callId) {
+final _callDetailProvider = FutureProvider.family<CallModel, String>((
+  ref,
+  callId,
+) {
   return ref.read(callServiceProvider).getCallById(callId);
 });
 
@@ -31,7 +33,8 @@ class CallDetailScreen extends ConsumerWidget {
       ),
       body: callAsync.when(
         loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (_, __) => const Center(child: Text('Gagal memuat detail')),
         data: (call) => _CallDetailContent(call: call),
       ),
@@ -44,8 +47,7 @@ class _CallDetailContent extends ConsumerStatefulWidget {
   final CallModel call;
 
   @override
-  ConsumerState<_CallDetailContent> createState() =>
-      _CallDetailContentState();
+  ConsumerState<_CallDetailContent> createState() => _CallDetailContentState();
 }
 
 class _CallDetailContentState extends ConsumerState<_CallDetailContent>
@@ -58,7 +60,9 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
   void initState() {
     super.initState();
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 400));
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
   }
@@ -70,27 +74,27 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
   }
 
   Color get _statusColor => switch (widget.call.status) {
-        'accept' => AppColors.success,
-        'unanswered' => AppColors.warning,
-        'cancelled' || 'expired' => AppColors.textHint,
-        _ => AppColors.primary,
-      };
+    'accept' => AppColors.success,
+    'unanswered' => AppColors.warning,
+    'cancelled' || 'expired' => AppColors.textHint,
+    _ => AppColors.primary,
+  };
 
   String get _statusLabel => switch (widget.call.status) {
-        'accept' => 'Diterima',
-        'unanswered' => 'Tidak Dijawab',
-        'cancelled' => 'Dibatalkan',
-        'expired' => 'Kedaluwarsa',
-        _ => 'Menunggu',
-      };
+    'accept' => 'Diterima',
+    'unanswered' => 'Tidak Dijawab',
+    'cancelled' => 'Dibatalkan',
+    'expired' => 'Kedaluwarsa',
+    _ => 'Menunggu',
+  };
 
   IconData get _statusIcon => switch (widget.call.status) {
-        'accept' => Icons.check_circle_outline,
-        'unanswered' => Icons.do_not_disturb_alt_outlined,
-        'cancelled' => Icons.cancel_outlined,
-        'expired' => Icons.hourglass_disabled_outlined,
-        _ => Icons.pending_outlined,
-      };
+    'accept' => Icons.check_circle_outline,
+    'unanswered' => Icons.do_not_disturb_alt_outlined,
+    'cancelled' => Icons.cancel_outlined,
+    'expired' => Icons.hourglass_disabled_outlined,
+    _ => Icons.pending_outlined,
+  };
 
   Future<void> _cancel() async {
     setState(() => _cancelling = true);
@@ -124,8 +128,7 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
               decoration: BoxDecoration(
                 color: _statusColor.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(20),
-                border:
-                    Border.all(color: _statusColor.withOpacity(0.2)),
+                border: Border.all(color: _statusColor.withOpacity(0.2)),
               ),
               child: Column(
                 children: [
@@ -136,8 +139,7 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
                       color: _statusColor.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(_statusIcon,
-                        color: _statusColor, size: 36),
+                    child: Icon(_statusIcon, color: _statusColor, size: 36),
                   ),
                   const SizedBox(height: 14),
                   Text(
@@ -153,7 +155,9 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
                   Text(
                     _formatDate(call.createdAt),
                     style: const TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -161,18 +165,20 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
             const SizedBox(height: 20),
 
             // ── Info detail ───────────────────────────────
-            _InfoCard(children: [
-              _InfoRow(
-                icon: Icons.location_on_outlined,
-                label: 'Lokasi dibagikan',
-                value: call.locationConsent ? 'Ya' : 'Tidak',
-              ),
-              _InfoRow(
-                icon: Icons.fingerprint,
-                label: 'ID Panggilan',
-                value: call.id.substring(0, 8).toUpperCase(),
-              ),
-            ]),
+            _InfoCard(
+              children: [
+                _InfoRow(
+                  icon: Icons.location_on_outlined,
+                  label: 'Lokasi dibagikan',
+                  value: call.locationConsent ? 'Ya' : 'Tidak',
+                ),
+                _InfoRow(
+                  icon: Icons.fingerprint,
+                  label: 'ID Panggilan',
+                  value: call.id.substring(0, 8).toUpperCase(),
+                ),
+              ],
+            ),
 
             const SizedBox(height: 20),
 
@@ -189,8 +195,7 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
             if (call.canReview) ...[
               RkButton(
                 label: 'Beri Ulasan',
-                onPressed: () =>
-                    context.push('/calls/${call.id}/review'),
+                onPressed: () => context.push('/calls/${call.id}/review'),
                 icon: Icons.star_outline,
               ),
             ],
@@ -225,18 +230,27 @@ class _InfoCard extends StatelessWidget {
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
-        children: children
-            .expand((w) => [w, const Divider(height: 20, color: AppColors.divider)])
-            .toList()
-          ..removeLast(),
+        children:
+            children
+                .expand(
+                  (w) => [
+                    w,
+                    const Divider(height: 20, color: AppColors.divider),
+                  ],
+                )
+                .toList()
+              ..removeLast(),
       ),
     );
   }
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow(
-      {required this.icon, required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
   final IconData icon;
   final String label;
   final String value;
@@ -247,15 +261,19 @@ class _InfoRow extends StatelessWidget {
       children: [
         Icon(icon, size: 18, color: AppColors.textSecondary),
         const SizedBox(width: 10),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 13, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
         const Spacer(),
-        Text(value,
-            style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ],
     );
   }
