@@ -116,7 +116,8 @@ jobs:
         with:
           context: ./backend
           file: ./backend/Dockerfile
-          tags: ghcr.io/${{ github.repository }}-backend:latest
+          push: true
+          tags: ghcr.io/superrezz/radar_keliling-backend:latest 
 
       - name: Deploy to VPS Jagoan Cloud via SSH
         uses: appleboy/ssh-action@v1.0.0
