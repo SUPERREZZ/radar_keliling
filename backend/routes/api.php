@@ -94,6 +94,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/merchants/{id}', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'show']);
     Route::get('/merchants/{id}/menus', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'menus']);
     Route::get('/merchants/{id}/rating', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'rating']);
+    Route::get('/merchants/{id}/reviews', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'reviews']);
 
     // Predictive Demand Heatmap (Spatial PostGIS AI)
     Route::get('/heatmap', [\App\Http\Controllers\Api\V1\HeatmapController::class, 'index']);
