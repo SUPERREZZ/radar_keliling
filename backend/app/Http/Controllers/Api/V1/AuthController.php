@@ -127,4 +127,13 @@ class AuthController extends Controller
     {
         return new UserResource($request->user());
     }
+
+    public function deleteAccount(Request $request): Response
+    {
+        $user = $request->user();
+        $user->tokens()->delete();
+        $user->delete();
+
+        return response()->noContent();
+    }
 }

@@ -25,7 +25,7 @@ return new class extends Migration
             $table->index(['buyer_id', 'merchant_id', 'created_at'], 'idx_calls_pair_created');
         });
 
-        DB::statement("ALTER TABLE calls ADD CONSTRAINT chk_call_status CHECK (status IN ('pending', 'accepted', 'answered', 'unanswered', 'cancelled', 'expired', 'completed'))");
+        DB::statement("ALTER TABLE calls ADD CONSTRAINT chk_call_status CHECK (status IN ('pending', 'accept', 'accepted', 'answered', 'unanswered', 'cancelled', 'expired', 'completed'))");
     }
 
     public function down(): void

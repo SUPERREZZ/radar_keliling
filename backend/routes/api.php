@@ -27,12 +27,13 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // Alias routes outside /auth prefix for /fcm/token
+    // Alias routes outside /auth prefix for /fcm/token and /account
     Route::middleware('auth:sanctum')->group(function () {
+        Route::delete('/account', [AuthController::class, 'deleteAccount']);
         Route::post('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'storeToken']);
         Route::delete('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'deleteToken']);
 
-        // Merchant Profile & Menus
+        // Merchant Profile, Menus, Location, & Calls Management
         Route::prefix('merchant')->middleware('merchant')->group(function () {
             Route::get('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'show']);
             Route::put('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'update']);
@@ -43,14 +44,18 @@ Route::prefix('v1')->group(function () {
             Route::post('/selling/stop', [\App\Http\Controllers\Api\V1\Merchant\MerchantLocationController::class, 'stopSelling']);
             Route::put('/location', [\App\Http\Controllers\Api\V1\Merchant\MerchantLocationController::class, 'updateLocation']);
 
-            // Menu Management
+            // Menu Management & Sorting
             Route::get('/menus', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'index']);
             Route::get('/menus/{id}', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'show']);
             Route::post('/menus', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'store']);
             Route::put('/menus/{id}', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'update']);
+            Route::patch('/menus/{id}/availability', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'toggleAvailability']);
             Route::delete('/menus/{id}', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'destroy']);
             Route::post('/menus/{id}/photos', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'uploadPhoto']);
             Route::delete('/menu-photos/{id}', [\App\Http\Controllers\Api\V1\Merchant\MenuController::class, 'deletePhoto']);
+
+            // Merchant Calls / Order Management & Sorting
+            Route::get('/calls', [\App\Http\Controllers\Api\V1\CallController::class, 'index']);
 
             // Smart Buyer Hotspots (Heatmap for Merchant)
             Route::get('/radar/buyer-hotspots', [\App\Http\Controllers\Api\V1\HeatmapController::class, 'merchantHotspots']);
@@ -81,7 +86,9 @@ Route::prefix('v1')->group(function () {
         // Admin Endpoints
         Route::prefix('admin')->middleware('admin')->group(function () {
             Route::get('/review-reports', [\App\Http\Controllers\Api\V1\ReviewReportController::class, 'adminIndex']);
+            Route::get('/reviews', [\App\Http\Controllers\Api\V1\ReviewController::class, 'adminIndex']);
             Route::patch('/reviews/{id}/hide', [\App\Http\Controllers\Api\V1\ReviewController::class, 'hide']);
+            Route::patch('/reviews/{id}/unhide', [\App\Http\Controllers\Api\V1\ReviewController::class, 'unhide']);
         });
     });
 

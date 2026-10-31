@@ -111,5 +111,40 @@ class MerchantProfileTest extends TestCase
             ->assertJsonPath('data.merchant_id', $profile->id)
             ->assertJsonStructure(['data' => ['merchant_id', 'average_rating', 'total_reviews']]);
     }
+
+    public function test_buyer_cannot_access_or_update_merchant_profile(): void
+    {
+        $buyer = User::factory()->create(['role' => User::ROLE_BUYER]);
+        $token = $buyer->createToken('mobile')->plainTextToken;
+
+        $this->withToken($token)->getJson('/api/v1/merchant/profile')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+
+        $this->withToken($token)->putJson('/api/v1/merchant/profile', [
+            'business_name' => 'Nama Baru',
+        ])->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_profile_photo_upload_rejects_oversized_file(): void
+    {
+        Storage::fake('public');
+        $merchant = User::factory()->merchant()->create();
+        $token = $merchant->createToken('mobile')->plainTextToken;
+
+        MerchantProfile::create([
+            'user_id' => $merchant->id,
+            'business_name' => 'Toko Besar',
+        ]);
+
+        // File 3MB (melebihi limit 2MB / 2048 KB)
+        $oversized = UploadedFile::fake()->create('huge_banner.jpg', 3000, 'image/jpeg');
+
+        $this->withToken($token)->postJson('/api/v1/merchant/profile/photo', [
+            'photo' => $oversized,
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
 }
 

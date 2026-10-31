@@ -7,6 +7,7 @@ use App\Http\Resources\MenuResource;
 use App\Http\Resources\PublicMerchantResource;
 use App\Models\MerchantProfile;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PublicMerchantController extends Controller
@@ -18,12 +19,40 @@ class PublicMerchantController extends Controller
         return new PublicMerchantResource($merchant);
     }
 
-    public function menus(string $id): AnonymousResourceCollection
+    public function menus(Request $request, string $id): AnonymousResourceCollection
     {
         $merchant = MerchantProfile::findOrFail($id);
-        $menus = $merchant->menus()->with('photos')->where('is_available', true)->get();
+        $query = $merchant->menus()->with('photos')->where('is_available', true);
 
-        return MenuResource::collection($menus);
+        if ($request->filled('search')) {
+            $search = trim((string) $request->query('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ILIKE', "%{$search}%")
+                    ->orWhere('description', 'ILIKE', "%{$search}%");
+            });
+        }
+
+        $sort = strtolower((string) ($request->query('sort') ?? $request->query('sort_by') ?? 'latest'));
+        switch ($sort) {
+            case 'price_asc':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_desc':
+                $query->orderBy('price', 'desc');
+                break;
+            case 'name':
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        return MenuResource::collection($query->get());
     }
 
     public function rating(string $id): JsonResponse
@@ -43,4 +72,3 @@ class PublicMerchantController extends Controller
         ]);
     }
 }
-

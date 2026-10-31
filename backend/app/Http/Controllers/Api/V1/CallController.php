@@ -112,13 +112,7 @@ class CallController extends Controller
             locationShared: (bool) $validated['share_location']
         ));
 
-        return response()->json([
-            'data' => [
-                'call_id' => $call->id,
-                'status' => $call->status,
-                'created_at' => $call->created_at->toIso8601String(),
-            ],
-        ], 201);
+        return (new CallResource($call))->response()->setStatusCode(201);
     }
 
     public function index(Request $request): AnonymousResourceCollection
@@ -127,14 +121,80 @@ class CallController extends Controller
 
         if ($user->isMerchant()) {
             $merchantId = $user->merchantProfile?->id;
-            $calls = $merchantId
-                ? Call::where('merchant_id', $merchantId)->orderBy('created_at', 'desc')->get()
-                : collect();
+            if (! $merchantId) {
+                return CallResource::collection(collect());
+            }
+            $query = Call::where('calls.merchant_id', $merchantId);
+        } elseif ($user->isAdmin()) {
+            $query = Call::query();
+            if ($request->filled('merchant_id')) {
+                $query->where('calls.merchant_id', $request->query('merchant_id'));
+            }
+            if ($request->filled('buyer_id')) {
+                $query->where('calls.buyer_id', $request->query('buyer_id'));
+            }
         } else {
-            $calls = Call::where('buyer_id', $user->id)->orderBy('created_at', 'desc')->get();
+            $query = Call::where('calls.buyer_id', $user->id);
         }
 
-        return CallResource::collection($calls);
+        // Filter berdasarkan status panggilan (mendukung single atau comma-separated)
+        if ($request->filled('status')) {
+            $rawStatuses = array_filter(array_map('trim', explode(',', (string) $request->query('status'))));
+            $expandedStatuses = [];
+            foreach ($rawStatuses as $st) {
+                if (in_array($st, ['accept', 'accepted', 'answered'], true)) {
+                    $expandedStatuses = array_merge($expandedStatuses, ['accept', 'accepted', 'answered']);
+                } else {
+                    $expandedStatuses[] = $st;
+                }
+            }
+            $query->whereIn('calls.status', array_unique($expandedStatuses));
+        }
+
+        // Sorting pesanan/panggilan berdasarkan parameter sort / sort_by
+        $sort = strtolower((string) ($request->query('sort') ?? $request->query('sort_by') ?? 'latest'));
+        $sortOrder = strtolower((string) $request->query('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        switch ($sort) {
+            case 'priority':
+            case 'pending_first':
+                $query->orderByRaw("
+                    CASE
+                        WHEN calls.status = 'pending' THEN 0
+                        WHEN calls.status IN ('accept', 'accepted', 'answered') THEN 1
+                        WHEN calls.status = 'completed' THEN 2
+                        ELSE 3
+                    END ASC,
+                    calls.created_at DESC
+                ");
+                break;
+
+            case 'nearest':
+            case 'distance':
+                $query->leftJoin('merchant_locations as ml', 'ml.merchant_id', '=', 'calls.merchant_id')
+                    ->select('calls.*')
+                    ->selectRaw('ROUND(ST_Distance(calls.buyer_location, ml.current_location)::numeric, 1) as distance_m')
+                    ->orderByRaw('ST_Distance(calls.buyer_location, ml.current_location) ASC NULLS LAST, calls.created_at DESC');
+                break;
+
+            case 'oldest':
+            case 'asc':
+                $query->orderBy('calls.created_at', 'asc');
+                break;
+
+            case 'status':
+                $query->orderBy('calls.status', $sortOrder)->orderBy('calls.created_at', 'desc');
+                break;
+
+            case 'latest':
+            case 'newest':
+            case 'desc':
+            default:
+                $query->orderBy('calls.created_at', 'desc');
+                break;
+        }
+
+        return CallResource::collection($query->get());
     }
 
     public function show(Request $request, string $id): JsonResponse
@@ -170,12 +230,7 @@ class CallController extends Controller
 
         broadcast(new CallStatusUpdated($call->id, Call::STATUS_ACCEPTED, $call->merchant_id));
 
-        return response()->json([
-            'data' => [
-                'id' => $call->id,
-                'status' => Call::STATUS_ACCEPTED,
-            ],
-        ]);
+        return (new CallResource($call->fresh()))->response()->setStatusCode(200);
     }
 
     public function accept(Request $request, string $id): JsonResponse
@@ -192,16 +247,15 @@ class CallController extends Controller
             throw new ApiException('FORBIDDEN', 'Hanya pedagang yang dipanggil yang dapat menyelesaikan transaksi panggilan.', 403);
         }
 
+        if (! in_array($call->status, [Call::STATUS_PENDING, Call::STATUS_ACCEPTED, 'accept', 'answered'], true)) {
+            throw new ApiException('INVALID_CALL_STATE', 'Panggilan tidak dapat diselesaikan dari status saat ini.', 400);
+        }
+
         $call->update(['status' => Call::STATUS_COMPLETED]);
 
         broadcast(new CallStatusUpdated($call->id, Call::STATUS_COMPLETED, $call->merchant_id));
 
-        return response()->json([
-            'data' => [
-                'id' => $call->id,
-                'status' => Call::STATUS_COMPLETED,
-            ],
-        ]);
+        return (new CallResource($call->fresh()))->response()->setStatusCode(200);
     }
 
     public function unanswered(Request $request, string $id): JsonResponse
@@ -213,16 +267,15 @@ class CallController extends Controller
             throw new ApiException('FORBIDDEN', 'Hanya pedagang yang dipanggil yang dapat menolak panggilan.', 403);
         }
 
+        if ($call->status !== Call::STATUS_PENDING) {
+            throw new ApiException('INVALID_CALL_STATE', 'Hanya panggilan berstatus pending yang dapat ditolak.', 400);
+        }
+
         $call->update(['status' => Call::STATUS_UNANSWERED]);
 
         broadcast(new CallStatusUpdated($call->id, Call::STATUS_UNANSWERED, $call->merchant_id));
 
-        return response()->json([
-            'data' => [
-                'id' => $call->id,
-                'status' => Call::STATUS_UNANSWERED,
-            ],
-        ]);
+        return (new CallResource($call->fresh()))->response()->setStatusCode(200);
     }
 
     public function cancel(Request $request, string $id): JsonResponse
@@ -242,11 +295,6 @@ class CallController extends Controller
 
         broadcast(new CallStatusUpdated($call->id, Call::STATUS_CANCELLED, $call->merchant_id));
 
-        return response()->json([
-            'data' => [
-                'id' => $call->id,
-                'status' => Call::STATUS_CANCELLED,
-            ],
-        ]);
+        return (new CallResource($call->fresh()))->response()->setStatusCode(200);
     }
 }

@@ -9,6 +9,7 @@ use App\Models\MerchantLocation;
 use App\Models\MerchantProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
@@ -223,6 +224,179 @@ class CallTest extends TestCase
             ->assertJsonPath('data.status', 'cancelled');
 
         $this->assertEquals('cancelled', $call->fresh()->status);
+    }
+
+    public function test_merchant_cannot_initiate_call(): void
+    {
+        [, $merchantToken] = $this->createMerchant();
+        [, , $targetMerchant] = $this->createMerchant(-7.4700, 112.4300);
+
+        $response = $this->withToken($merchantToken)->postJson('/api/v1/calls', [
+            'merchant_id' => $targetMerchant->id,
+            'share_location' => true,
+            'buyer_latitude' => -7.4705,
+            'buyer_longitude' => 112.4305,
+            'gps_accuracy_m' => 10.0,
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_unrelated_user_cannot_view_call_details(): void
+    {
+        [$buyer] = $this->createBuyer();
+        [, $unrelatedToken] = $this->createBuyer();
+        [, , $merchant] = $this->createMerchant();
+
+        $call = Call::create([
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $merchant->id,
+            'status' => 'pending',
+            'location_consent' => true,
+            'created_at' => now(),
+        ]);
+
+        $this->withToken($unrelatedToken)->getJson("/api/v1/calls/{$call->id}")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_cannot_accept_already_cancelled_call(): void
+    {
+        [$buyer] = $this->createBuyer();
+        [, $merchantToken, $merchant] = $this->createMerchant();
+
+        $call = Call::create([
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $merchant->id,
+            'status' => 'cancelled',
+            'location_consent' => true,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->withToken($merchantToken)->postJson("/api/v1/calls/{$call->id}/accept");
+        $response->assertStatus(400)
+            ->assertJsonPath('error.code', 'INVALID_CALL_STATE');
+    }
+
+    public function test_other_merchant_cannot_accept_call(): void
+    {
+        [$buyer] = $this->createBuyer();
+        [, , $merchantTarget] = $this->createMerchant();
+        [, $otherMerchantToken] = $this->createMerchant();
+
+        $call = Call::create([
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $merchantTarget->id,
+            'status' => 'pending',
+            'location_consent' => true,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->withToken($otherMerchantToken)->postJson("/api/v1/calls/{$call->id}/accept");
+        $response->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_merchant_can_mark_call_as_unanswered(): void
+    {
+        Event::fake([CallStatusUpdated::class]);
+        [$buyer] = $this->createBuyer();
+        [, $merchantToken, $merchant] = $this->createMerchant();
+
+        $call = Call::create([
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $merchant->id,
+            'status' => 'pending',
+            'location_consent' => true,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->withToken($merchantToken)->postJson("/api/v1/calls/{$call->id}/unanswered");
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'unanswered');
+
+        $this->assertEquals('unanswered', $call->fresh()->status);
+        Event::assertDispatched(CallStatusUpdated::class);
+    }
+
+    public function test_merchant_can_filter_and_sort_calls_by_priority_status_and_distance(): void
+    {
+        [$buyer1] = $this->createBuyer();
+        [$buyer2] = $this->createBuyer();
+        [, $merchantToken, $merchant] = $this->createMerchant(-7.4700, 112.4300);
+
+        // Call 1: completed (10 menit lalu)
+        $callCompleted = Call::create([
+            'buyer_id' => $buyer1->id,
+            'merchant_id' => $merchant->id,
+            'status' => Call::STATUS_COMPLETED,
+            'location_consent' => false,
+            'created_at' => now()->subMinutes(10),
+        ]);
+
+        // Call 2: pending, agak jauh (~150m, 5 menit lalu)
+        $callPendingFar = Call::create([
+            'buyer_id' => $buyer1->id,
+            'merchant_id' => $merchant->id,
+            'status' => Call::STATUS_PENDING,
+            'location_consent' => true,
+            'location_expires_at' => now()->addMinutes(15),
+            'created_at' => now()->subMinutes(5),
+        ]);
+        DB::statement("UPDATE calls SET buyer_location = ST_SetSRID(ST_MakePoint(112.4310, -7.4710), 4326)::geography WHERE id = ?", [$callPendingFar->id]);
+
+        // Call 3: pending, sangat dekat (~30m, 2 menit lalu)
+        $callPendingNear = Call::create([
+            'buyer_id' => $buyer2->id,
+            'merchant_id' => $merchant->id,
+            'status' => Call::STATUS_PENDING,
+            'location_consent' => true,
+            'location_expires_at' => now()->addMinutes(15),
+            'created_at' => now()->subMinutes(2),
+        ]);
+        DB::statement("UPDATE calls SET buyer_location = ST_SetSRID(ST_MakePoint(112.4302, -7.4702), 4326)::geography WHERE id = ?", [$callPendingNear->id]);
+
+        // 1. Filter status=pending
+        $pendingRes = $this->withToken($merchantToken)->getJson('/api/v1/merchant/calls?status=pending');
+        $pendingRes->assertOk()->assertJsonCount(2, 'data');
+
+        // 2. Sort by priority (pending di atas completed)
+        $priorityRes = $this->withToken($merchantToken)->getJson('/api/v1/merchant/calls?sort=priority');
+        $priorityRes->assertOk()->assertJsonCount(3, 'data');
+        $this->assertEquals('pending', $priorityRes->json('data.0.status'));
+        $this->assertEquals('pending', $priorityRes->json('data.1.status'));
+        $this->assertEquals('completed', $priorityRes->json('data.2.status'));
+
+        // 3. Sort by nearest (jarak pembeli terdekat di urutan pertama)
+        $nearestRes = $this->withToken($merchantToken)->getJson('/api/v1/merchant/calls?status=pending&sort=nearest');
+        $nearestRes->assertOk()->assertJsonCount(2, 'data');
+        $this->assertEquals($callPendingNear->id, $nearestRes->json('data.0.id'));
+        $this->assertEquals($callPendingFar->id, $nearestRes->json('data.1.id'));
+        $this->assertNotNull($nearestRes->json('data.0.buyer_latitude'));
+        $this->assertNotNull($nearestRes->json('data.0.distance_m'));
+    }
+
+    public function test_expired_location_consent_hides_buyer_coordinates(): void
+    {
+        [$buyer] = $this->createBuyer();
+        [, $merchantToken, $merchant] = $this->createMerchant(-7.4700, 112.4300);
+
+        $call = Call::create([
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $merchant->id,
+            'status' => Call::STATUS_ACCEPTED,
+            'location_consent' => true,
+            'location_expires_at' => now()->subMinutes(1), // Sudah lewat 15 menit
+            'created_at' => now()->subMinutes(16),
+        ]);
+        DB::statement("UPDATE calls SET buyer_location = ST_SetSRID(ST_MakePoint(112.4302, -7.4702), 4326)::geography WHERE id = ?", [$call->id]);
+
+        $res = $this->withToken($merchantToken)->getJson("/api/v1/calls/{$call->id}");
+        $res->assertOk()
+            ->assertJsonPath('data.buyer_latitude', null)
+            ->assertJsonPath('data.buyer_longitude', null);
     }
 }
 

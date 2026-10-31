@@ -128,5 +128,36 @@ class RadarTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonPath('error.code', 'VALIDATION_ERROR');
     }
+
+    public function test_radar_rejects_radius_greater_than_3000m(): void
+    {
+        [, $token] = $this->createBuyer();
+
+        $response = $this->withToken($token)->getJson('/api/v1/radar/merchants?latitude=-7.4700&longitude=112.4300&radius=5000');
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_buyer_can_search_and_sort_radar_merchants(): void
+    {
+        [, $token] = $this->createBuyer();
+
+        $m1 = $this->createMerchantWithLocation('Soto Lamongan Cak Har', -7.4720, 112.4320, true);
+        $m2 = $this->createMerchantWithLocation('Bakso Malang Pak De', -7.4705, 112.4305, true);
+
+        // Search keyword "soto"
+        $searchRes = $this->withToken($token)->getJson('/api/v1/radar/merchants?latitude=-7.4700&longitude=112.4300&search=soto');
+        $searchRes->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.merchant_id', $m1->id);
+
+        // Sort by name
+        $sortNameRes = $this->withToken($token)->getJson('/api/v1/radar/merchants?latitude=-7.4700&longitude=112.4300&sort=name');
+        $sortNameRes->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.business_name', 'Bakso Malang Pak De')
+            ->assertJsonPath('data.1.business_name', 'Soto Lamongan Cak Har');
+    }
 }
 
