@@ -1,58 +1,76 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Radar Keliling — Backend API (Laravel 12 + PostGIS + Reverb + FCM)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend REST API dan Real-Time Geospatial Server untuk **Radar Keliling**, menghubungkan **Pembeli (`buyer`)**, **Pedagang Keliling (`merchant`)**, dan **Administrator (`admin`)** secara *real-time* menggunakan PostgreSQL + **PostGIS**, **Laravel Reverb (WebSocket)**, serta **Firebase Cloud Messaging (FCM)**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Fitur Utama
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+1. **Autentikasi & Role-Based Access Control (Sanctum)**:
+   - Role: `buyer`, `merchant`, `admin`.
+   - Verifikasi email dengan token OTP SHA-256 (kedaluwarsa 60 menit, *rate limit* resend 3x/jam).
+   - Manajemen akun (`GET /api/v1/auth/me`, `DELETE /api/v1/account`).
+2. **Real-Time Spatial Radar (PostGIS + Geohash Grid)**:
+   - Pencarian pedagang keliling aktif dalam radius hingga **3.000 meter** menggunakan `ST_DWithin` dan `ST_Distance` berbasis indeks spasial `GIST`.
+   - *Threshold* pergerakan GPS **5 meter** (`has_moved_5m`) untuk efisiensi broadcast WebSocket pada channel `private-radar.{geohash}`.
+3. **Sistem Panggilan Pedagang ("Panggil Pedagang")**:
+   - Validasi akurasi GPS (`<= 50m`), status jualan pedagang (`is_selling = true`), kesegaran lokasi (`<= 30 detik`), jarak panggilan (`<= 200m`), dan *rate-limit* (`maks 2 panggilan / 60 detik`).
+   - Manajemen & *sorting* pesanan untuk pedagang (`?sort=priority|nearest|latest|oldest|status` & `?status=pending,accepted`).
+   - Privasi lokasi pembeli: koordinat pembeli otomatis kedaluwarsa dan dihapus fisik dari database setelah **15 menit** melalui scheduler `php artisan radar:cleanup`.
+4. **Ulasan Buta (*Blind Review*) & Moderasi Admin**:
+   - Pembeli dapat memberi rating `1–5` bintang setelah panggilan `accepted` atau `completed`.
+   - Pelaporan ulasan oleh komunitas dan moderasi `hide`/`unhide` oleh Admin.
+5. **Predictive Demand Heatmap (Spatial AI Clustering)**:
+   - Klasterisasi titik permintaan pembeli per jam (`0–23`) dan kategori menggunakan `ST_SnapToGrid` & `ST_Centroid`.
+   - Rekomendasi *hotspot* terdekat untuk pedagang (`GET /api/v1/merchant/radar/buyer-hotspots`).
+6. **Swagger / OpenAPI 3.1 Interactive Docs**:
+   - Tersedia di `/docs` (otomatis tersembunyi/`404` ketika `APP_ENV=production`).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Akun Bawaan Database Seeder
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Jalankan `php artisan migrate --seed` untuk mengisi data awal (5 pedagang keliling di Surabaya, katalog menu, riwayat panggilan, ulasan, dan ~475 titik *Demand Heatmap*):
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+| Role | Email | Password | Keterangan |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin@radarkeliling.com` | `password` | Moderasi laporan & ulasan |
+| **Buyer 1** | `buyer@radarkeliling.com` | `password` | Akun pembeli utama |
+| **Buyer 2** | `andi@radarkeliling.com` | `password` | Akun pembeli kedua |
+| **Merchant 1** | `budi@radarkeliling.com` | `password` | Bakso Malang Cak Budi (`is_selling = true`) |
+| **Merchant 2** | `siti@radarkeliling.com` | `password` | Siomay & Batagor Bu Siti (`is_selling = true`) |
+| **Merchant 3** | `joko@radarkeliling.com` | `password` | Es Cendol Dawet Mas Joko (`is_selling = true`) |
+| **Merchant 4** | `eneng@radarkeliling.com` | `password` | Cilok & Cireng Crispy Teh Eneng (`is_selling = true`) |
+| **Merchant 5** | `ali@radarkeliling.com` | `password` | Martabak & Terang Bulan Bang Ali (`is_selling = false`) |
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Instalasi & Menjalankan Lokal
 
 ```bash
-composer require laravel/boost --dev
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
 
-php artisan boost:install
+# Pastikan PostgreSQL dengan ekstensi PostGIS aktif, lalu jalankan migrasi & seeder:
+php artisan migrate --seed
+
+# Buat symlink public storage untuk foto profil & menu:
+php artisan storage:link
+
+# Jalankan server API & WebSocket Reverb:
+php artisan serve
+php artisan reverb:start
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## Pengujian Otomatis (PHPUnit)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Seluruh fitur dilengkapi **100 test otomatis** (*Unit* & *Feature Tests*):
 
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+cd backend
+php artisan test
+```

@@ -36,6 +36,8 @@ Route::prefix('v1')->group(function () {
 
         // Merchant Profile, Menus, Location, & Calls Management
         Route::prefix('merchant')->middleware('merchant')->group(function () {
+            Route::get('/dashboard', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'dashboard']);
+            Route::get('/stats', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'dashboard']);
             Route::get('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'show']);
             Route::put('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'update']);
             Route::post('/profile/photo', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'uploadPhoto']);

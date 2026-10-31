@@ -146,5 +146,43 @@ class MerchantProfileTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonPath('error.code', 'VALIDATION_ERROR');
     }
+
+    public function test_merchant_can_view_dashboard_summary_stats(): void
+    {
+        $merchant = User::factory()->merchant()->create();
+        $token = $merchant->createToken('mobile')->plainTextToken;
+
+        $profile = MerchantProfile::create([
+            'user_id' => $merchant->id,
+            'business_name' => 'Bakso Dashboard',
+            'is_selling' => true,
+        ]);
+
+        $profile->menus()->create(['name' => 'Bakso Halus', 'price' => 15000, 'is_available' => true]);
+        $profile->menus()->create(['name' => 'Bakso Urat', 'price' => 18000, 'is_available' => false]);
+
+        $res = $this->withToken($token)->getJson('/api/v1/merchant/dashboard');
+        $res->assertOk()
+            ->assertJsonPath('data.merchant_id', $profile->id)
+            ->assertJsonPath('data.business_name', 'Bakso Dashboard')
+            ->assertJsonPath('data.is_selling', true)
+            ->assertJsonPath('data.total_menus', 2)
+            ->assertJsonPath('data.available_menus', 1)
+            ->assertJsonStructure([
+                'data' => [
+                    'merchant_id',
+                    'business_name',
+                    'is_selling',
+                    'pending_calls',
+                    'active_calls',
+                    'completed_today',
+                    'total_completed_calls',
+                    'total_menus',
+                    'available_menus',
+                    'total_reviews',
+                    'average_rating',
+                ],
+            ]);
+    }
 }
 

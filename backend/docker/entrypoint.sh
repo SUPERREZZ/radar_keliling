@@ -24,6 +24,12 @@ php artisan route:cache || true
 echo "Running migrations..."
 php artisan migrate --force || true
 
+echo "Linking public storage..."
+php artisan storage:link --force || true
+
+echo "Starting Laravel Scheduler in background..."
+php artisan schedule:work > /dev/null 2>&1 &
+
 echo "Starting PHP-FPM..."
 php-fpm -D
 

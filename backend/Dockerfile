@@ -12,7 +12,8 @@ RUN apk add --no-cache \
     nginx
 
 # Install PHP extensions required for PostgreSQL/PostGIS, Redis, and Laravel
-RUN docker-php-ext-install pdo pdo_pgsql pgsql gd zip bcmath opcache pcntl
+RUN docker-php-ext-install pdo pdo_pgsql pgsql gd zip bcmath opcache pcntl \
+    && printf "upload_max_filesize=10M\npost_max_size=12M\nmemory_limit=256M\n" > /usr/local/etc/php/conf.d/uploads.ini
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
