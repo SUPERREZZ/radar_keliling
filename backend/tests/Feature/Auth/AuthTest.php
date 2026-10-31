@@ -88,3 +88,4 @@ class AuthTest extends TestCase
             ->assertJsonPath('error.code', 'UNAUTHENTICATED');
     }
 }
+
