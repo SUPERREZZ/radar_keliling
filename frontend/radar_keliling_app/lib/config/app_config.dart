@@ -5,21 +5,21 @@ class AppConfig {
 
   // ── DEMO MODE ─────────────────────────────────────────────
   /// Set true untuk testing tanpa backend (gunakan dummy data)
-  static const bool isDemoMode = true;
+  static const bool isDemoMode = false;
 
   // ── REST API ──────────────────────────────────────────────
   /// Base URL tanpa trailing slash.
-  static const String baseUrl = 'https://YOUR_DOMAIN/api/v1';
+  static const String baseUrl = 'http://backend.jh-beon.cloud/api/v1';
 
   // ── WebSocket (Laravel Reverb) ────────────────────────────
   /// Host Reverb — minta ke tim backend.
-  static const String wsHost = 'YOUR_DOMAIN';
+  static const String wsHost = 'backend.jh-beon.cloud';
 
   /// Key Reverb — harus sama persis dengan nilai di .env backend.
   static const String reverbAppKey = 'YOUR_REVERB_APP_KEY';
 
   /// Port Reverb (default: 6001 untuk non-TLS, 443 untuk TLS).
-  static const int wsPort = 6001;
+  static const int wsPort = 80;
 
   /// Gunakan TLS (wss://) di production.
   static const bool wsTls = false;
