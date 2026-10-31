@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,6 +27,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   bool _saving = false;
   bool _uploadingPhoto = false;
   File? _selectedPhoto;
+  String? _uploadedPhotoUrl;
 
   @override
   void dispose() {
@@ -36,8 +38,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _pickPhoto() async {
     final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
 
     final file = File(picked.path);
@@ -50,20 +54,38 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _selectedPhoto = file);
   }
 
-  Future<void> _uploadPhoto() async {
-    if (_selectedPhoto == null) return;
+  Future<bool> _uploadPhoto({bool showSuccess = true}) async {
+    final photo = _selectedPhoto;
+    if (photo == null) return false;
+
     setState(() => _uploadingPhoto = true);
     try {
-      await ref
+      final url = await ref
           .read(merchantServiceProvider)
-          .uploadProfilePhoto(_selectedPhoto!.path);
-      if (!mounted) return;
-      showRkSnackbar(context, 'Foto profil berhasil diperbarui.');
+          .uploadProfilePhoto(photo.path);
+      if (!mounted) return true;
+
+      setState(() {
+        _uploadedPhotoUrl = AppConfig.resolveMediaUrl(url);
+        _selectedPhoto = null;
+      });
       ref.invalidate(merchantSelfProfileProvider);
-      setState(() => _selectedPhoto = null);
+      if (showSuccess) {
+        showRkSnackbar(context, 'Foto profil berhasil diperbarui.');
+      }
+      return true;
     } on ApiException catch (e) {
-      if (!mounted) return;
-      showRkSnackbar(context, e.message, isError: true);
+      if (mounted) showRkSnackbar(context, e.message, isError: true);
+      return false;
+    } catch (_) {
+      if (mounted) {
+        showRkSnackbar(
+          context,
+          'Gagal mengunggah foto. Coba lagi.',
+          isError: true,
+        );
+      }
+      return false;
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }
@@ -71,9 +93,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedPhoto != null && !await _uploadPhoto(showSuccess: false)) {
+      return;
+    }
+
     setState(() => _saving = true);
     try {
-      await ref.read(merchantServiceProvider).updateProfile(
+      await ref
+          .read(merchantServiceProvider)
+          .updateProfile(
             businessName: _nameCtrl.text.trim(),
             description: _descCtrl.text.trim().isEmpty
                 ? null
@@ -105,16 +134,29 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ),
       ),
       body: profileAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (_, __) =>
-            const Center(child: Text('Gagal memuat profil')),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (_, __) => const Center(child: Text('Gagal memuat profil')),
         data: (profile) {
           // Prefill saat pertama load
           if (_nameCtrl.text.isEmpty) {
             _nameCtrl.text = profile.businessName;
             _descCtrl.text = profile.description ?? '';
           }
+
+          final photoUrl = _selectedPhoto == null
+              ? AppConfig.resolveMediaUrl(
+                  _uploadedPhotoUrl ?? profile.profilePhotoUrl ?? '',
+                )
+              : '';
+          final hasPhoto = photoUrl.isNotEmpty;
+          final ImageProvider? photoImage = _selectedPhoto != null
+              ? FileImage(_selectedPhoto!)
+              : hasPhoto
+              ? CachedNetworkImageProvider(photoUrl)
+              : null;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Form(
@@ -129,15 +171,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         CircleAvatar(
                           radius: 52,
                           backgroundColor: AppColors.primaryLight,
-                          backgroundImage: _selectedPhoto != null
-                              ? FileImage(_selectedPhoto!) as ImageProvider
-                              : (profile.profilePhotoUrl != null
-                                  ? NetworkImage(profile.profilePhotoUrl!)
-                                  : null),
-                          child: (_selectedPhoto == null &&
-                                  profile.profilePhotoUrl == null)
-                              ? const Icon(Icons.storefront,
-                                  size: 36, color: AppColors.primary)
+                          backgroundImage: photoImage,
+                          child: !hasPhoto && _selectedPhoto == null
+                              ? const Icon(
+                                  Icons.storefront,
+                                  size: 36,
+                                  color: AppColors.primary,
+                                )
                               : null,
                         ),
                         Positioned(
@@ -152,10 +192,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                 color: AppColors.primary,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: Colors.white, width: 2),
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
                               ),
-                              child: const Icon(Icons.camera_alt,
-                                  size: 16, color: Colors.white),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                size: 16,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -166,15 +211,30 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     const SizedBox(height: 12),
                     Center(
                       child: SizedBox(
-                        width: 160,
+                        width: 170,
                         child: RkButton(
-                          label: 'Upload Foto',
+                          label: 'Upload Sekarang',
                           onPressed: _uploadPhoto,
                           isLoading: _uploadingPhoto,
                           icon: Icons.cloud_upload_outlined,
                         ),
                       ),
                     ),
+                    Center(
+                      child: TextButton(
+                        onPressed: _uploadingPhoto
+                            ? null
+                            : () => setState(() => _selectedPhoto = null),
+                        child: const Text(
+                          'Batalkan pilihan foto',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                   ],
                   const SizedBox(height: 28),
 
@@ -182,9 +242,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const Text(
                     'Nama Usaha',
                     style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   RkTextField(
@@ -202,9 +263,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const Text(
                     'Deskripsi',
                     style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   RkTextField(

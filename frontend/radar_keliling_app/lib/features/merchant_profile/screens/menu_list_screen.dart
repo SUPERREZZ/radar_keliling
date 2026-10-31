@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../config/app_config.dart';
 import '../../../core/models/menu_model.dart';
 import '../providers/merchant_profile_provider.dart';
 import '../../../shared/theme/app_theme.dart';
@@ -26,7 +27,8 @@ class MenuListScreen extends ConsumerWidget {
       ),
       body: menusAsync.when(
         loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (_, __) => const Center(child: Text('Gagal memuat menu')),
         data: (menus) {
           if (menus.isEmpty) {
@@ -36,8 +38,10 @@ class MenuListScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.no_meals, size: 48, color: AppColors.textHint),
                   SizedBox(height: 12),
-                  Text('Belum ada menu',
-                      style: TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    'Belum ada menu',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ],
               ),
             );
@@ -60,8 +64,11 @@ class _MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currency =
-        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -75,22 +82,25 @@ class _MenuCard extends StatelessWidget {
           // Foto carousel (jika ada)
           if (menu.photos.isNotEmpty)
             ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               child: SizedBox(
                 height: 160,
                 child: PageView.builder(
                   itemCount: menu.photos.length,
                   itemBuilder: (_, i) => CachedNetworkImage(
-                    imageUrl: menu.photos[i].url,
+                    imageUrl: AppConfig.resolveMediaUrl(menu.photos[i].url),
                     fit: BoxFit.cover,
                     width: double.infinity,
                     placeholder: (_, __) =>
                         Container(color: AppColors.primaryLight),
                     errorWidget: (_, __, ___) => Container(
                       color: AppColors.primaryLight,
-                      child: const Icon(Icons.image_not_supported_outlined,
-                          color: AppColors.textHint),
+                      child: const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: AppColors.textHint,
+                      ),
                     ),
                   ),
                 ),
@@ -117,7 +127,9 @@ class _MenuCard extends StatelessWidget {
                     if (!menu.isAvailable)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.divider,
                           borderRadius: BorderRadius.circular(8),
@@ -125,8 +137,9 @@ class _MenuCard extends StatelessWidget {
                         child: const Text(
                           'Habis',
                           style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary),
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                   ],
@@ -137,7 +150,9 @@ class _MenuCard extends StatelessWidget {
                   Text(
                     menu.description!,
                     style: const TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
