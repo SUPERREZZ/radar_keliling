@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,24 +17,45 @@ import '../features/review/screens/review_form_screen.dart';
 import '../features/admin/screens/admin_reports_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
+  final authNotifier = ref.watch(authProvider.notifier);
   final authState = ref.watch(authProvider);
 
   return GoRouter(
-    initialLocation: '/radar',
+    initialLocation: '/login',
+    refreshListenable: _RouterRefreshStream(ref),
     redirect: (context, state) {
-      final isLoading = authState.isLoading;
-      if (isLoading) return null;
+      // Skip redirect during initial loading (when state is loading AND no user data)
+      if (authState.isLoading && authState.valueOrNull == null) {
+        return null;
+      }
 
       final user = authState.valueOrNull;
       final isLoggedIn = user != null;
-      final isAuthRoute = state.matchedLocation.startsWith('/login') ||
-          state.matchedLocation.startsWith('/register') ||
-          state.matchedLocation.startsWith('/verify');
+      final location = state.matchedLocation;
+      final isAuthRoute = location.startsWith('/login') ||
+          location.startsWith('/register') ||
+          location.startsWith('/verify');
 
-      if (!isLoggedIn && !isAuthRoute) return '/login';
-      if (isLoggedIn && isAuthRoute) {
-        return user.isMerchant ? '/selling' : '/radar';
+      // Debug logging
+      debugPrint('[Router] location: $location');
+      debugPrint('[Router] isLoggedIn: $isLoggedIn');
+      debugPrint('[Router] user: ${user?.email} (${user?.role})');
+      debugPrint('[Router] isAuthRoute: $isAuthRoute');
+
+      // Not logged in → force to auth pages
+      if (!isLoggedIn && !isAuthRoute) {
+        debugPrint('[Router] ➜ Redirect to /login (not authenticated)');
+        return '/login';
       }
+
+      // Logged in but on auth page → redirect to appropriate home
+      if (isLoggedIn && isAuthRoute) {
+        final destination = user.isMerchant ? '/selling' : '/radar';
+        debugPrint('[Router] ➜ Redirect to $destination (authenticated)');
+        return destination;
+      }
+
+      debugPrint('[Router] ➜ No redirect needed');
       return null;
     },
     routes: [
@@ -89,3 +111,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
+
+
+/// Helper to make GoRouter refresh when auth state changes
+class _RouterRefreshStream extends ChangeNotifier {
+  _RouterRefreshStream(Ref ref) {
+    ref.listen(
+      authProvider,
+      (previous, next) {
+        // Notify router to re-evaluate redirect logic whenever auth state changes
+        notifyListeners();
+      },
+    );
+  }
+}

@@ -32,9 +32,15 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
 
   Future<void> login({required String email, required String password}) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(
-      () => _service.login(email: email, password: password),
-    );
+    try {
+      final user = await _service.login(email: email, password: password);
+      state = AsyncValue.data(user);
+      print('[AuthProvider] Login successful: ${user.email} (${user.role})');
+    } catch (e, st) {
+      print('[AuthProvider] Login failed: $e');
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
   }
 
   Future<void> register({

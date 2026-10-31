@@ -30,19 +30,33 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    print('[AuthService] Login attempt: $email');
     final res = await _api.post(Endpoints.login, data: {
       'email': email,
       'password': password,
     });
+    
+    print('[AuthService] Login response: ${res.statusCode}');
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
     final token = data['token'] as String;
     final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    
+    print('[AuthService] Token received: ${token.substring(0, 20)}...');
+    print('[AuthService] User: ${user.email} (${user.role})');
+    
     await SecureStorage.saveSession(
       token: token,
       role: user.role,
       userId: user.id,
       email: user.email,
     );
+    
+    print('[AuthService] Session saved to SecureStorage');
+    
+    // Verify token was saved
+    final savedToken = await SecureStorage.getToken();
+    print('[AuthService] Verify saved token: ${savedToken != null ? "✓ Found" : "✗ Not found!"}');
+    
     return user;
   }
 
