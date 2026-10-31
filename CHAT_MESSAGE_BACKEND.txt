@@ -1,0 +1,28 @@
+Halo! Frontend Radar Keliling sudah selesai dan terintegrasi dengan API production kalian (http://backend.jh-beon.cloud/api/v1). 
+
+MASALAH SEKARANG:
+Kami tidak bisa login untuk testing karena backend block login tanpa email verification. Register berhasil, tapi login ditolak dengan error "Email belum diverifikasi".
+
+SOLUSI TERCEPAT:
+Tolong jalankan database seeder di production server:
+```
+php artisan db:seed
+```
+
+Ini akan create akun testing (buyer@radar.test, merchant@radar.test, admin@radar.test) dengan email sudah verified.
+
+ALTERNATIF (kalau seeder tidak bisa):
+Manual update database:
+```
+UPDATE users SET email_verified = 1 WHERE email = 'test@example.com';
+```
+
+PERTANYAAN TAMBAHAN:
+1. Bisa share REVERB_APP_KEY dari file .env? (untuk WebSocket real-time)
+2. Email service sudah jalan? Kalau belum, gimana cara verify email untuk testing?
+3. Semua migration sudah dijalankan kan di production?
+
+TIMELINE:
+Harap bisa dijalankan dalam 1-2 hari agar kami bisa full testing sebelum deadline hackathon.
+
+Terima kasih! 🙏
