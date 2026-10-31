@@ -15,7 +15,6 @@ dependencies:
 
   # State management
   flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
 
   # Storage aman untuk token
   flutter_secure_storage: ^9.2.4
@@ -46,18 +45,17 @@ dependencies:
   # Cached network image (ringan)
   cached_network_image: ^3.4.1
 
-  # Ikon
-  cupertino_icons: ^1.0.8
+  # Ikon (Material icons sudah bundled via flutter SDK)
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   build_runner: ^2.4.13
-  riverpod_generator: ^2.6.2
 
 flutter:
   uses-material-design: true
+  # Hanya include ikon Material (hilangkan Cupertino font ~150 KB)
   assets:
     - assets/images/
     - assets/icons/
