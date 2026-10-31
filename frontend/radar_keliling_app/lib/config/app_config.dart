@@ -44,10 +44,10 @@ class AppConfig {
   static const String wsHost = 'backend.jh-beon.cloud';
 
   /// Key Reverb — harus sama persis dengan nilai di .env backend.
-  static const String reverbAppKey = 'YOUR_REVERB_APP_KEY';
+  static const String reverbAppKey = 'radarkelilingkey';
 
-  /// Port Reverb (default: 6001 untuk non-TLS, 443 untuk TLS).
-  static const int wsPort = 80;
+  /// Port Reverb (default: 8080 untuk Reverb non-TLS).
+  static const int wsPort = 11245;
 
   /// Gunakan TLS (wss://) di production.
   static const bool wsTls = false;
@@ -57,7 +57,7 @@ class AppConfig {
   static const int callRadiusMeters = 200;
   static const double callGpsAccuracyMaxMeters = 50.0;
   static const int gpsUpdateIntervalSeconds = 10;
-  static const int locationStaleThresholdSeconds = 30;
+  static const int locationStaleThresholdSeconds = 60;
   static const int maxMenuPhotos = 5;
   static const int maxPhotoSizeBytes = 2 * 1024 * 1024; // 2 MB
 }
