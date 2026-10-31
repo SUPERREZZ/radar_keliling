@@ -7,8 +7,9 @@ import '../../../shared/widgets/rk_snackbar.dart';
 import '../../../shared/theme/app_theme.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
-  const VerifyEmailScreen({super.key, required this.email});
+  const VerifyEmailScreen({super.key, required this.email, this.token});
   final String email;
+  final String? token; // Token dari deep link
 
   @override
   ConsumerState<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
@@ -18,6 +19,9 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
     with SingleTickerProviderStateMixin {
   bool _resending = false;
   bool _resentSuccess = false;
+  bool _showManualInput = false;
+  bool _verifying = false;
+  final _tokenCtrl = TextEditingController();
 
   late AnimationController _bounceCtrl;
   late Animation<double> _bounceAnim;
@@ -32,11 +36,19 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
     _bounceAnim = Tween<double>(begin: 0, end: -8).animate(
       CurvedAnimation(parent: _bounceCtrl, curve: Curves.easeInOut),
     );
+    
+    // Auto-verify if token is provided from deep link
+    if (widget.token != null && widget.token!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoVerify(widget.token!);
+      });
+    }
   }
 
   @override
   void dispose() {
     _bounceCtrl.dispose();
+    _tokenCtrl.dispose();
     super.dispose();
   }
 
@@ -56,8 +68,81 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
     }
   }
 
+  Future<void> _autoVerify(String token) async {
+    setState(() => _verifying = true);
+    try {
+      await ref.read(authServiceProvider).verifyEmail(token);
+      if (!mounted) return;
+      showRkSnackbar(context, '✅ Email berhasil diverifikasi! Silakan login.');
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      context.go('/login');
+    } catch (e) {
+      if (!mounted) return;
+      // Auto-verify failed, show manual input
+      setState(() => _showManualInput = true);
+      showRkSnackbar(
+        context,
+        'Verifikasi otomatis gagal. Silakan masukkan token manual.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _verifying = false);
+    }
+  }
+
+  Future<void> _verifyManual() async {
+    final token = _tokenCtrl.text.trim();
+    if (token.isEmpty) {
+      showRkSnackbar(context, 'Token tidak boleh kosong', isError: true);
+      return;
+    }
+
+    setState(() => _verifying = true);
+    try {
+      await ref.read(authServiceProvider).verifyEmail(token);
+      if (!mounted) return;
+      showRkSnackbar(context, '✅ Email berhasil diverifikasi! Silakan login.');
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      context.go('/login');
+    } catch (e) {
+      if (!mounted) return;
+      showRkSnackbar(
+        context,
+        'Verifikasi gagal. Token mungkin salah atau sudah kedaluwarsa.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _verifying = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Show loading during auto-verify
+    if (_verifying && widget.token != null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Memverifikasi email...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -112,6 +197,85 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
                     color: AppColors.textHint),
               ),
               const Spacer(),
+              
+              // Manual token input section
+              if (_showManualInput) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Masukkan Token Verifikasi',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _tokenCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Paste token dari email',
+                          hintStyle: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textHint,
+                          ),
+                          filled: true,
+                          fillColor: AppColors.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: RkButton(
+                              label: 'Verifikasi',
+                              onPressed: _verifyManual,
+                              isLoading: _verifying,
+                              icon: Icons.check_circle_outline,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => setState(() => _showManualInput = false),
+                            icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                            tooltip: 'Tutup',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              
+              // Show manual input button if not showing
+              if (!_showManualInput)
+                TextButton.icon(
+                  onPressed: () => setState(() => _showManualInput = true),
+                  icon: const Icon(Icons.vpn_key_outlined, size: 18),
+                  label: const Text('Punya token verifikasi? Masukkan manual'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                  ),
+                ),
+              const SizedBox(height: 8),
               if (!_resentSuccess)
                 RkButton(
                   label: 'Kirim Ulang Email',

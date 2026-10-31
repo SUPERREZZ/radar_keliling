@@ -76,7 +76,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/verify',
         builder: (_, state) {
           final email = state.uri.queryParameters['email'] ?? '';
-          return VerifyEmailScreen(email: email);
+          final token = state.uri.queryParameters['token'];
+          return VerifyEmailScreen(email: email, token: token);
         },
       ),
       // Buyer routes
