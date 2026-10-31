@@ -89,7 +89,8 @@ class ReviewController extends Controller
                 break;
         }
 
-        $reviews = $query->get();
+        $limit = min(max((int) $request->query('limit', 100), 1), 200);
+        $reviews = $query->limit($limit)->get();
 
         return response()->json([
             'data' => $reviews->map(fn (Review $r) => [

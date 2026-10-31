@@ -18,8 +18,20 @@ class SwaggerDocsTest extends TestCase
     {
         config(['app.env' => 'production']);
 
-        $response = $this->get('/docs');
-        $response->assertNotFound();
+        $this->get('/docs')->assertNotFound();
+        $this->getJson('/docs/api.json')->assertForbidden();
+    }
+
+    public function test_swagger_openapi_json_spec_is_accessible_in_non_production(): void
+    {
+        $response = $this->getJson('/docs/api.json');
+        $response->assertOk()
+            ->assertJsonPath('openapi', '3.1.2')
+            ->assertJsonStructure([
+                'openapi',
+                'info' => ['title', 'version'],
+                'paths',
+            ]);
     }
 }
 

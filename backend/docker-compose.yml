@@ -11,6 +11,7 @@ services:
       - .env
     volumes:
       - ./.env:/var/www/html/.env
+      - storage_data:/var/www/html/storage/app/public
     depends_on:
       db:
         condition: service_healthy
@@ -26,6 +27,7 @@ services:
       - .env
     volumes:
       - ./.env:/var/www/html/.env
+      - storage_data:/var/www/html/storage/app/public
     depends_on:
       db:
         condition: service_healthy
@@ -51,3 +53,4 @@ services:
 
 volumes:
   pgdata:
+  storage_data:

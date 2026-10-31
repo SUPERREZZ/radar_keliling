@@ -54,6 +54,12 @@ class MerchantProfile extends Model
 
     public function getAverageRatingAttribute(): float
     {
+        if (array_key_exists('average_rating', $this->attributes)) {
+            return $this->attributes['average_rating'] !== null
+                ? round((float) $this->attributes['average_rating'], 1)
+                : 0.0;
+        }
+
         $avg = $this->reviews()->where('moderation_status', Review::STATUS_VISIBLE)->avg('rating');
 
         return $avg ? round((float) $avg, 1) : 0.0;
@@ -61,6 +67,10 @@ class MerchantProfile extends Model
 
     public function getTotalReviewsAttribute(): int
     {
+        if (array_key_exists('total_reviews', $this->attributes)) {
+            return (int) $this->attributes['total_reviews'];
+        }
+
         return $this->reviews()->where('moderation_status', Review::STATUS_VISIBLE)->count();
     }
 

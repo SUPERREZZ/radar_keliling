@@ -43,9 +43,16 @@ class EmailVerificationToken extends Model
 
     public static function createForUser(User $user, int $expiryMinutes = 60): string
     {
-        // 6-digit or random hex token; standard 6-digit alphanumeric/numeric code works best on mobile
-        $plainToken = (string) random_int(100000, 999999);
-        $tokenHash = hash('sha256', $plainToken);
+        // Invalidasi semua token OTP lama milik user ini yang belum terpakai
+        self::where('user_id', $user->id)
+            ->whereNull('used_at')
+            ->update(['used_at' => now()]);
+
+        // Buat 6-digit OTP unik yang belum pernah dipakai di tabel
+        do {
+            $plainToken = (string) random_int(100000, 999999);
+            $tokenHash = hash('sha256', $plainToken);
+        } while (self::where('token_hash', $tokenHash)->exists());
 
         self::create([
             'user_id' => $user->id,

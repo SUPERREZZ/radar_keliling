@@ -10,9 +10,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
         Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
-        // Email verification endpoints & aliases
-        Route::post('/email/verify', [AuthController::class, 'verifyEmail']);
-        Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+        // Email verification endpoints & aliases (rate-limited against brute-force, supports GET link click & POST)
+        Route::match(['get', 'post'], '/email/verify', [AuthController::class, 'verifyEmail'])->middleware('throttle:10,1');
+        Route::match(['get', 'post'], '/verify-email', [AuthController::class, 'verifyEmail'])->middleware('throttle:10,1');
 
         Route::post('/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:3,60');
         Route::post('/resend-verification', [AuthController::class, 'resendVerification'])->middleware('throttle:3,60');
@@ -27,14 +27,17 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // Alias routes outside /auth prefix for /fcm/token and /account
+    // Alias routes outside /auth prefix for /fcm/token, /account, and /broadcasting/auth
     Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/broadcasting/auth', [\Illuminate\Broadcasting\BroadcastController::class, 'authenticate']);
         Route::delete('/account', [AuthController::class, 'deleteAccount']);
         Route::post('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'storeToken']);
         Route::delete('/fcm/token', [\App\Http\Controllers\Api\V1\FcmController::class, 'deleteToken']);
 
         // Merchant Profile, Menus, Location, & Calls Management
         Route::prefix('merchant')->middleware('merchant')->group(function () {
+            Route::get('/dashboard', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'dashboard']);
+            Route::get('/stats', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'dashboard']);
             Route::get('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'show']);
             Route::put('/profile', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'update']);
             Route::post('/profile/photo', [\App\Http\Controllers\Api\V1\Merchant\MerchantProfileController::class, 'uploadPhoto']);
@@ -60,11 +63,6 @@ Route::prefix('v1')->group(function () {
             // Smart Buyer Hotspots (Heatmap for Merchant)
             Route::get('/radar/buyer-hotspots', [\App\Http\Controllers\Api\V1\HeatmapController::class, 'merchantHotspots']);
         });
-
-        // Public merchant endpoints
-        Route::get('/merchants/{id}', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'show']);
-        Route::get('/merchants/{id}/menus', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'menus']);
-        Route::get('/merchants/{id}/rating', [\App\Http\Controllers\Api\V1\PublicMerchantController::class, 'rating']);
 
         // Radar Endpoints (Buyer)
         Route::get('/radar/merchants', [\App\Http\Controllers\Api\V1\RadarController::class, 'merchants']);

@@ -21,6 +21,10 @@ class ReviewReportController extends Controller
 
         $review = Review::findOrFail($id);
 
+        if (ReviewReport::where('review_id', $review->id)->where('reporter_id', $user->id)->exists()) {
+            throw new ApiException('REPORT_ALREADY_EXISTS', 'Anda sudah pernah melaporkan ulasan ini sebelumnya.', 409);
+        }
+
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:500'],
         ]);
@@ -55,7 +59,8 @@ class ReviewReportController extends Controller
             $query->orderBy('created_at', 'desc');
         }
 
-        $reports = $query->get();
+        $limit = min(max((int) $request->query('limit', 100), 1), 200);
+        $reports = $query->limit($limit)->get();
 
         return response()->json([
             'data' => $reports->map(fn (ReviewReport $report) => [

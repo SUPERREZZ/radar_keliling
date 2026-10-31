@@ -21,29 +21,36 @@ class HeatmapController extends Controller
         $gridSize = (float) ($request->query('grid_size') ?: 0.005);
         $gridSize = max(0.001, min(0.05, $gridSize));
 
-        $query = "
-            SELECT
-                ROUND(ST_Y(ST_Centroid(ST_Collect(geom::geometry)))::numeric, 6) AS latitude,
-                ROUND(ST_X(ST_Centroid(ST_Collect(geom::geometry)))::numeric, 6) AS longitude,
-                ROUND((COUNT(id)::numeric / GREATEST(MAX(COUNT(id)) OVER(), 1)), 2) AS weight,
-                COUNT(id) AS total_requests
-            FROM demand_logs
-            WHERE EXTRACT(HOUR FROM created_at) = ?
-        ";
-
+        $categoryFilter = '';
         $bindings = [$hour];
 
         if ($category !== null && $category !== '') {
-            $query .= ' AND LOWER(kategori_pencarian) = LOWER(?) ';
+            $categoryFilter = ' AND LOWER(kategori_pencarian) = LOWER(?) ';
             $bindings[] = $category;
         }
 
-        $query .= '
-            GROUP BY ST_SnapToGrid(geom::geometry, ?)
-            HAVING COUNT(id) >= 1
-            ORDER BY weight DESC, total_requests DESC
-        ';
         $bindings[] = $gridSize;
+
+        $query = "
+            WITH clustered AS (
+                SELECT
+                    ST_Centroid(ST_Collect(geom::geometry)) AS center_geom,
+                    COUNT(id) AS total_requests
+                FROM demand_logs
+                WHERE EXTRACT(HOUR FROM created_at) = ?
+                {$categoryFilter}
+                GROUP BY ST_SnapToGrid(geom::geometry, ?)
+                HAVING COUNT(id) >= 1
+            )
+            SELECT
+                ROUND(ST_Y(center_geom)::numeric, 6) AS latitude,
+                ROUND(ST_X(center_geom)::numeric, 6) AS longitude,
+                ROUND((total_requests::numeric / GREATEST(MAX(total_requests) OVER(), 1)), 2) AS weight,
+                total_requests
+            FROM clustered
+            ORDER BY weight DESC, total_requests DESC
+            LIMIT 100
+        ";
 
         $results = DB::select($query, $bindings);
 
@@ -96,35 +103,47 @@ class HeatmapController extends Controller
 
         if ($lat !== null && $lng !== null) {
             $query = "
+                WITH clustered AS (
+                    SELECT
+                        ST_Centroid(ST_Collect(geom::geometry)) AS center_geom,
+                        COUNT(id) AS total_requests
+                    FROM demand_logs
+                    WHERE EXTRACT(HOUR FROM created_at) = ?
+                    GROUP BY ST_SnapToGrid(geom::geometry, 0.005)
+                    HAVING COUNT(id) >= 1
+                )
                 SELECT
-                    ROUND(ST_Y(ST_Centroid(ST_Collect(geom::geometry)))::numeric, 6) AS latitude,
-                    ROUND(ST_X(ST_Centroid(ST_Collect(geom::geometry)))::numeric, 6) AS longitude,
-                    ROUND((COUNT(id)::numeric / GREATEST(MAX(COUNT(id)) OVER(), 1)), 2) AS weight,
-                    COUNT(id) AS total_requests,
+                    ROUND(ST_Y(center_geom)::numeric, 6) AS latitude,
+                    ROUND(ST_X(center_geom)::numeric, 6) AS longitude,
+                    ROUND((total_requests::numeric / GREATEST(MAX(total_requests) OVER(), 1)), 2) AS weight,
+                    total_requests,
                     ROUND(ST_Distance(
-                        ST_Centroid(ST_Collect(geom::geometry))::geography,
+                        center_geom::geography,
                         ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography
                     )::numeric, 1) AS distance_m
-                FROM demand_logs
-                WHERE EXTRACT(HOUR FROM created_at) = ?
-                GROUP BY ST_SnapToGrid(geom::geometry, 0.005)
-                HAVING COUNT(id) >= 1
+                FROM clustered
                 ORDER BY distance_m ASC, weight DESC
                 LIMIT 10
             ";
-            $results = DB::select($query, [$lng, $lat, $hour]);
+            $results = DB::select($query, [$hour, $lng, $lat]);
         } else {
             $query = "
+                WITH clustered AS (
+                    SELECT
+                        ST_Centroid(ST_Collect(geom::geometry)) AS center_geom,
+                        COUNT(id) AS total_requests
+                    FROM demand_logs
+                    WHERE EXTRACT(HOUR FROM created_at) = ?
+                    GROUP BY ST_SnapToGrid(geom::geometry, 0.005)
+                    HAVING COUNT(id) >= 1
+                )
                 SELECT
-                    ROUND(ST_Y(ST_Centroid(ST_Collect(geom::geometry)))::numeric, 6) AS latitude,
-                    ROUND(ST_X(ST_Centroid(ST_Collect(geom::geometry)))::numeric, 6) AS longitude,
-                    ROUND((COUNT(id)::numeric / GREATEST(MAX(COUNT(id)) OVER(), 1)), 2) AS weight,
-                    COUNT(id) AS total_requests,
+                    ROUND(ST_Y(center_geom)::numeric, 6) AS latitude,
+                    ROUND(ST_X(center_geom)::numeric, 6) AS longitude,
+                    ROUND((total_requests::numeric / GREATEST(MAX(total_requests) OVER(), 1)), 2) AS weight,
+                    total_requests,
                     NULL AS distance_m
-                FROM demand_logs
-                WHERE EXTRACT(HOUR FROM created_at) = ?
-                GROUP BY ST_SnapToGrid(geom::geometry, 0.005)
-                HAVING COUNT(id) >= 1
+                FROM clustered
                 ORDER BY weight DESC, total_requests DESC
                 LIMIT 10
             ";

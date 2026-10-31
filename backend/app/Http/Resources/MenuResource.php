@@ -11,11 +11,12 @@ class MenuResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'merchant_id' => $this->merchant_id,
             'name' => $this->name,
             'description' => $this->description,
             'price' => (float) $this->price,
             'is_available' => (bool) $this->is_available,
-            'photos' => MenuPhotoResource::collection($this->whenLoaded('photos') ?? $this->photos),
+            'photos' => MenuPhotoResource::collection($this->whenLoaded('photos')),
         ];
     }
 }

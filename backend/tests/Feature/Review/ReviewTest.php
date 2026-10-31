@@ -312,6 +312,12 @@ class ReviewTest extends TestCase
             'reason' => 'Ulasan mengandung kata-kata kasar.',
             'status' => 'pending',
         ]);
+
+        // Pelapor yang sama tidak dapat melakukan spam laporan pada ulasan yang sama
+        $this->actingAs($reporter)->postJson("/api/v1/reviews/{$review->id}/reports", [
+            'reason' => 'Spam laporan kedua.',
+        ])->assertStatus(409)
+            ->assertJsonPath('error.code', 'REPORT_ALREADY_EXISTS');
     }
 
     public function test_admin_can_view_reports_and_hide_review(): void

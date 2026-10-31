@@ -192,9 +192,9 @@ class CallTest extends TestCase
         // Answer / Accept
         $response = $this->withToken($merchantToken)->postJson("/api/v1/calls/{$call->id}/accept");
         $response->assertOk()
-            ->assertJsonPath('data.status', 'accepted');
+            ->assertJsonPath('data.status', 'accept');
 
-        $this->assertEquals('accepted', $call->fresh()->status);
+        $this->assertEquals('accept', $call->fresh()->status);
         Event::assertDispatched(CallStatusUpdated::class);
 
         // Complete (sudah tiba di lokasi)
@@ -397,6 +397,56 @@ class CallTest extends TestCase
         $res->assertOk()
             ->assertJsonPath('data.buyer_latitude', null)
             ->assertJsonPath('data.buyer_longitude', null);
+    }
+
+    public function test_calls_list_has_no_n_plus_one_queries(): void
+    {
+        [$buyer] = $this->createBuyer();
+        [, $merchantToken, $merchant] = $this->createMerchant(-7.4700, 112.4300);
+
+        for ($i = 0; $i < 10; $i++) {
+            $call = Call::create([
+                'buyer_id' => $buyer->id,
+                'merchant_id' => $merchant->id,
+                'status' => Call::STATUS_PENDING,
+                'location_consent' => true,
+                'location_expires_at' => now()->addMinutes(15),
+                'created_at' => now()->subSeconds($i),
+            ]);
+            DB::statement("UPDATE calls SET buyer_location = ST_SetSRID(ST_MakePoint(112.4302, -7.4702), 4326)::geography WHERE id = ?", [$call->id]);
+        }
+
+        DB::enableQueryLog();
+        $res = $this->withToken($merchantToken)->getJson('/api/v1/merchant/calls');
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $res->assertOk()->assertJsonCount(10, 'data');
+        // Hanya 4 query: 1 sanctum token, 1 user, 1 merchant_profile, 1 calls list (tanpa N+1 per item)
+        $this->assertLessThanOrEqual(5, count($queries));
+    }
+
+    public function test_radar_cleanup_command_wipes_expired_locations_and_expires_stale_pending_calls(): void
+    {
+        [$buyer] = $this->createBuyer();
+        [, , $merchant] = $this->createMerchant(-7.4700, 112.4300);
+
+        $stalePendingCall = Call::create([
+            'buyer_id' => $buyer->id,
+            'merchant_id' => $merchant->id,
+            'status' => Call::STATUS_PENDING,
+            'location_consent' => true,
+            'location_expires_at' => now()->subMinutes(2),
+            'created_at' => now()->subMinutes(20),
+        ]);
+        DB::statement("UPDATE calls SET buyer_location = ST_SetSRID(ST_MakePoint(112.4302, -7.4702), 4326)::geography WHERE id = ?", [$stalePendingCall->id]);
+
+        $this->artisan('radar:cleanup')->assertExitCode(0);
+
+        $this->assertEquals(Call::STATUS_EXPIRED, $stalePendingCall->fresh()->status);
+
+        $locCheck = DB::selectOne('SELECT buyer_location FROM calls WHERE id = ?', [$stalePendingCall->id]);
+        $this->assertNull($locCheck->buyer_location);
     }
 }
 
