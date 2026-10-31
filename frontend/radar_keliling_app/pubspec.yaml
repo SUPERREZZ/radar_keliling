@@ -1,0 +1,63 @@
+name: radar_keliling
+description: "Radar Keliling — temukan pedagang keliling di sekitar kamu."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP
+  dio: ^5.7.0
+
+  # State management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Storage aman untuk token
+  flutter_secure_storage: ^9.2.4
+
+  # Navigasi
+  go_router: ^14.6.3
+
+  # Peta
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Lokasi & GPS
+  geolocator: ^13.0.2
+
+  # WebSocket (Pusher protocol — kompatibel dengan Reverb)
+  pusher_channels_flutter: ^2.1.0
+
+  # Push Notification
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+
+  # Image picker & crop
+  image_picker: ^1.1.2
+
+  # Format angka (harga rupiah)
+  intl: ^0.19.0
+
+  # Cached network image (ringan)
+  cached_network_image: ^3.4.1
+
+  # Ikon
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.13
+  riverpod_generator: ^2.6.2
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
