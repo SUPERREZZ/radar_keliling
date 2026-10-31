@@ -32,6 +32,11 @@ class MerchantProfile extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function menus()
+    {
+        return $this->hasMany(Menu::class, 'merchant_id');
+    }
+
     public function getProfilePhotoUrlAttribute(): ?string
     {
         if (! $this->profile_photo_path) {
@@ -42,7 +47,9 @@ class MerchantProfile extends Model
             return $this->profile_photo_path;
         }
 
-        return Storage::disk('public')->url($this->profile_photo_path);
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('public');
+
+        return $disk->url($this->profile_photo_path);
     }
 }
-

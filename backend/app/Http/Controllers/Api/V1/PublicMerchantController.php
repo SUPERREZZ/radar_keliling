@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\MenuResource;
 use App\Http\Resources\PublicMerchantResource;
 use App\Models\MerchantProfile;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PublicMerchantController extends Controller
 {
@@ -14,6 +16,14 @@ class PublicMerchantController extends Controller
         $merchant = MerchantProfile::findOrFail($id);
 
         return new PublicMerchantResource($merchant);
+    }
+
+    public function menus(string $id): AnonymousResourceCollection
+    {
+        $merchant = MerchantProfile::findOrFail($id);
+        $menus = $merchant->menus()->with('photos')->where('is_available', true)->get();
+
+        return MenuResource::collection($menus);
     }
 
     public function rating(string $id): JsonResponse
