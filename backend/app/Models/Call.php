@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Call extends Model
 {
@@ -51,10 +52,16 @@ class Call extends Model
         return $this->belongsTo(MerchantProfile::class, 'merchant_id');
     }
 
+    public function review(): HasOne
+    {
+        return $this->hasOne(Review::class, 'call_id');
+    }
+
     public function getHasReviewAttribute(): bool
     {
-        // Akan terhubung ke model Review saat modul review dibuat
-        return false;
+        return $this->relationLoaded('review')
+            ? $this->review !== null
+            : $this->review()->exists();
     }
 }
 

@@ -30,11 +30,15 @@ class PublicMerchantController extends Controller
     {
         $merchant = MerchantProfile::findOrFail($id);
 
+        $visibleReviews = $merchant->reviews()->where('moderation_status', 'visible');
+        $totalReviews = $visibleReviews->count();
+        $avgRating = $totalReviews > 0 ? round((float) $visibleReviews->avg('rating'), 1) : 0.0;
+
         return response()->json([
             'data' => [
                 'merchant_id' => $merchant->id,
-                'average_rating' => (float) ($merchant->average_rating ?? 0.0),
-                'total_reviews' => (int) ($merchant->total_reviews ?? 0),
+                'average_rating' => $avgRating,
+                'total_reviews' => $totalReviews,
             ],
         ]);
     }

@@ -47,6 +47,23 @@ class MerchantProfile extends Model
         return $this->hasMany(Call::class, 'merchant_id');
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'merchant_id');
+    }
+
+    public function getAverageRatingAttribute(): float
+    {
+        $avg = $this->reviews()->where('moderation_status', Review::STATUS_VISIBLE)->avg('rating');
+
+        return $avg ? round((float) $avg, 1) : 0.0;
+    }
+
+    public function getTotalReviewsAttribute(): int
+    {
+        return $this->reviews()->where('moderation_status', Review::STATUS_VISIBLE)->count();
+    }
+
     public function getProfilePhotoUrlAttribute(): ?string
     {
         if (! $this->profile_photo_path) {
