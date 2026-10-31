@@ -127,15 +127,17 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 3022
           script: |
-            # Login GHCR di VPS menggunakan Personal Access Token
             echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # Masuk ke folder backend
-            cd /root/radar_keliling/backend
-
+            
+            # Gunakan ~ (home directory) sebagai ganti /root
+            cd ~/radar_keliling/backend
+            
+            # Tarik pembaruan file konfigurasi dari repo (sesuaikan nama branch)
+            git pull origin backend-dev
+            
             # Tarik image terbaru dan restart container
             docker compose pull app reverb
             docker compose up -d
-
+            
             # Eksekusi migrasi di background tanpa interaksi
             docker compose exec -T app php artisan migrate --force
