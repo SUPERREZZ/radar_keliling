@@ -18,5 +18,8 @@
 # Kotlin coroutines
 -dontwarn kotlinx.coroutines.**
 
+# SLF4J (logging used by some dependencies)
+-dontwarn org.slf4j.**
+
 # Keep all classes with @Keep annotation
 -keep @androidx.annotation.Keep class * { *; }
