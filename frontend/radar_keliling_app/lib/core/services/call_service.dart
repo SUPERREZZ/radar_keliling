@@ -18,13 +18,16 @@ class CallService {
     required double buyerLongitude,
     required double gpsAccuracyM,
   }) async {
-    final res = await _api.post(Endpoints.calls, data: {
-      'merchant_id': merchantId,
-      'share_location': shareLocation,
-      'buyer_latitude': buyerLatitude,
-      'buyer_longitude': buyerLongitude,
-      'gps_accuracy_m': gpsAccuracyM,
-    });
+    final res = await _api.post(
+      Endpoints.calls,
+      data: {
+        'merchant_id': merchantId,
+        'share_location': shareLocation,
+        'buyer_latitude': buyerLatitude,
+        'buyer_longitude': buyerLongitude,
+        'gps_accuracy_m': gpsAccuracyM,
+      },
+    );
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
     // Backend response untuk create call pakai 'call_id', bukan 'id'
     if (!data.containsKey('id') && data.containsKey('call_id')) {
@@ -36,7 +39,9 @@ class CallService {
   Future<List<CallModel>> getCalls() async {
     final res = await _api.get(Endpoints.calls);
     final list = (res.data as Map)['data'] as List;
-    return list.map((e) => CallModel.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => CallModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<CallModel> getCallById(String id) async {
@@ -69,11 +74,14 @@ class CallService {
     required int rating,
     String? reviewText,
   }) async {
-    await _api.post(Endpoints.callReview(callId), data: {
-      'rating': rating,
-      if (reviewText != null && reviewText.isNotEmpty)
-        'review_text': reviewText,
-    });
+    await _api.post(
+      Endpoints.callReview(callId),
+      data: {
+        'rating': rating,
+        if (reviewText != null && reviewText.isNotEmpty)
+          'review_text': reviewText,
+      },
+    );
   }
 
   Future<void> reportReview({

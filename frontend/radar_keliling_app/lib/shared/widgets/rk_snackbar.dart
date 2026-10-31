@@ -57,14 +57,12 @@ class _AnimatedSnackbarState extends State<_AnimatedSnackbar>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1.5),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     // Slide in
     _controller.forward();
@@ -107,10 +105,11 @@ class _AnimatedSnackbarState extends State<_AnimatedSnackbar>
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: (widget.isError
-                                ? AppColors.error
-                                : AppColors.success)
-                            .withOpacity(0.3),
+                        color:
+                            (widget.isError
+                                    ? AppColors.error
+                                    : AppColors.success)
+                                .withOpacity(0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),

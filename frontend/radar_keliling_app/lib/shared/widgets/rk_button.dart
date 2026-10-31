@@ -37,9 +37,10 @@ class _RkButtonState extends State<RkButton>
       lowerBound: 0.0,
       upperBound: 0.04,
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.96).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.96,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
@@ -68,9 +69,7 @@ class _RkButtonState extends State<RkButton>
           decoration: BoxDecoration(
             color: widget.outlined
                 ? Colors.transparent
-                : (widget.onPressed == null
-                    ? color.withOpacity(0.4)
-                    : color),
+                : (widget.onPressed == null ? color.withOpacity(0.4) : color),
             border: widget.outlined
                 ? Border.all(color: color, width: 1.5)
                 : null,
@@ -90,10 +89,11 @@ class _RkButtonState extends State<RkButton>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (widget.icon != null) ...[
-                        Icon(widget.icon,
-                            size: 18,
-                            color:
-                                widget.outlined ? color : Colors.white),
+                        Icon(
+                          widget.icon,
+                          size: 18,
+                          color: widget.outlined ? color : Colors.white,
+                        ),
                         const SizedBox(width: 8),
                       ],
                       Text(

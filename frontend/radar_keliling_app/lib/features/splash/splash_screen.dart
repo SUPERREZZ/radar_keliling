@@ -22,15 +22,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1100),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.elasticOut,
-      ),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -40,34 +38,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
 
     _controller.forward();
-    
+
     // Check auth and navigate after animation
     _checkAuthAndNavigate();
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Wait for splash animation
-    await Future.delayed(const Duration(milliseconds: 2000));
-    
+    // Tampilkan splash minimal 2,4 detik agar branding sempat terbaca.
+    await Future.delayed(const Duration(milliseconds: 2400));
     if (!mounted) return;
-    
-    // Wait for auth state to load
-    final authState = ref.read(authProvider);
-    if (authState.isLoading) {
-      await Future.delayed(const Duration(milliseconds: 500));
+
+    // Tunggu pengecekan sesi selesai (maksimal ~3 detik).
+    var authState = ref.read(authProvider);
+    var attempts = 0;
+    while (authState.isLoading && attempts < 20) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      if (!mounted) return;
+      authState = ref.read(authProvider);
+      attempts++;
     }
-    
+
     if (!mounted) return;
-    
     final user = authState.valueOrNull;
-    if (user != null) {
-      // User logged in → go to home
-      final destination = user.isMerchant ? '/selling' : '/radar';
-      context.go(destination);
-    } else {
-      // Not logged in → go to login
-      context.go('/login');
-    }
+    context.go(user?.homeRoute ?? '/login');
   }
 
   @override
@@ -79,92 +72,123 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.primaryDark,
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppColors.primary,
-              AppColors.primary.withBlue(255),
-            ],
+            colors: [AppColors.primaryDark, AppColors.primary],
           ),
         ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Animated Logo
-              ScaleTransition(
-                scale: _scaleAnimation,
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(32),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -110,
+              right: -90,
+              child: _GlowCircle(size: 300, opacity: 0.08),
+            ),
+            Positioned(
+              bottom: -140,
+              left: -100,
+              child: _GlowCircle(size: 340, opacity: 0.06),
+            ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Container(
+                        width: 116,
+                        height: 116,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(34),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 34,
+                              offset: const Offset(0, 14),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.radar_rounded,
+                          size: 62,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: const Column(
+                      children: [
+                        Text(
+                          'Radar Keliling',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Temukan pedagang di sekitarmu',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.radar,
-                      size: 64,
-                      color: AppColors.primary,
-                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              // Animated App Name
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: const Column(
-                  children: [
-                    Text(
-                      'Radar Keliling',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
+                  const SizedBox(height: 46),
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: const SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.6,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Temukan Pedagang Terdekat',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 48),
-              // Loading Indicator
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: const SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _GlowCircle extends StatelessWidget {
+  const _GlowCircle({required this.size, required this.opacity});
+
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withOpacity(opacity),
+          width: 1.5,
+        ),
+        color: Colors.white.withOpacity(opacity / 3),
       ),
     );
   }

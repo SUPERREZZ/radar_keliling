@@ -26,8 +26,9 @@ class CallHistoryScreen extends ConsumerWidget {
         ),
       ),
       body: callsAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (_, __) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -48,8 +49,11 @@ class CallHistoryScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.campaign_outlined,
-                      size: 48, color: AppColors.textHint),
+                  Icon(
+                    Icons.campaign_outlined,
+                    size: 48,
+                    color: AppColors.textHint,
+                  ),
                   SizedBox(height: 12),
                   Text(
                     'Belum ada riwayat panggilan',
@@ -76,20 +80,20 @@ class _CallCard extends StatelessWidget {
   final CallModel call;
 
   Color get _statusColor => switch (call.status) {
-        'accept' => AppColors.success,
-        'unanswered' => AppColors.warning,
-        'cancelled' => AppColors.textHint,
-        'expired' => AppColors.textHint,
-        _ => AppColors.primary,
-      };
+    'accept' => AppColors.success,
+    'unanswered' => AppColors.warning,
+    'cancelled' => AppColors.textHint,
+    'expired' => AppColors.textHint,
+    _ => AppColors.primary,
+  };
 
   String get _statusLabel => switch (call.status) {
-        'accept' => 'Diterima',
-        'unanswered' => 'Tidak Dijawab',
-        'cancelled' => 'Dibatalkan',
-        'expired' => 'Kedaluwarsa',
-        _ => 'Menunggu',
-      };
+    'accept' => 'Diterima',
+    'unanswered' => 'Tidak Dijawab',
+    'cancelled' => 'Dibatalkan',
+    'expired' => 'Kedaluwarsa',
+    _ => 'Menunggu',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -112,8 +116,11 @@ class _CallCard extends StatelessWidget {
                 color: _statusColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.campaign_outlined,
-                  color: _statusColor, size: 22),
+              child: Icon(
+                Icons.campaign_outlined,
+                color: _statusColor,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -132,7 +139,9 @@ class _CallCard extends StatelessWidget {
                   Text(
                     _formatDate(call.createdAt),
                     style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -142,7 +151,9 @@ class _CallCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: _statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -150,9 +161,10 @@ class _CallCard extends StatelessWidget {
                   child: Text(
                     _statusLabel,
                     style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _statusColor),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _statusColor,
+                    ),
                   ),
                 ),
                 if (call.canReview) ...[
@@ -162,9 +174,10 @@ class _CallCard extends StatelessWidget {
                     child: const Text(
                       'Beri ulasan →',
                       style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600),
+                        fontSize: 11,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],

@@ -56,10 +56,7 @@ class _RkTextFieldState extends State<RkTextField> {
       onFieldSubmitted: widget.onFieldSubmitted,
       maxLength: widget.maxLength,
       maxLines: widget.obscureText ? 1 : widget.maxLines,
-      style: const TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 15,
-      ),
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,

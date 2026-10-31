@@ -22,12 +22,12 @@ class CallModel {
   bool get canReview => isAccepted && !hasReview;
 
   factory CallModel.fromJson(Map<String, dynamic> json) => CallModel(
-        id: json['id'] as String,
-        buyerId: json['buyer_id'] as String,
-        merchantId: json['merchant_id'] as String,
-        status: json['status'] as String,
-        locationConsent: json['location_consent'] as bool? ?? false,
-        createdAt: json['created_at'] as String,
-        hasReview: json['has_review'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    buyerId: json['buyer_id'] as String,
+    merchantId: json['merchant_id'] as String,
+    status: json['status'] as String,
+    locationConsent: json['location_consent'] as bool? ?? false,
+    createdAt: json['created_at'] as String,
+    hasReview: json['has_review'] as bool? ?? false,
+  );
 }
