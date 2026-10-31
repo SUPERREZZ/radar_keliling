@@ -8,6 +8,7 @@ class MerchantRadarItem {
     required this.gpsAccuracyM,
     required this.lastUpdatedAt,
     required this.isSelling,
+    this.profilePhotoUrl,
   });
 
   final String merchantId;
@@ -18,6 +19,7 @@ class MerchantRadarItem {
   final double gpsAccuracyM;
   final String lastUpdatedAt; // ISO 8601
   final bool isSelling;
+  final String? profilePhotoUrl;
 
   /// True jika lokasi masih segar (< 30 detik).
   bool get isLocationFresh {
@@ -39,6 +41,7 @@ class MerchantRadarItem {
         gpsAccuracyM: (json['gps_accuracy_m'] as num).toDouble(),
         lastUpdatedAt: json['last_updated_at'] as String,
         isSelling: json['is_selling'] as bool,
+        profilePhotoUrl: json['profile_photo_url'] as String?,
       );
 
   MerchantRadarItem copyWith({
@@ -48,17 +51,18 @@ class MerchantRadarItem {
     double? gpsAccuracyM,
     String? lastUpdatedAt,
     bool? isSelling,
-  }) =>
-      MerchantRadarItem(
-        merchantId: merchantId,
-        businessName: businessName,
-        latitude: latitude ?? this.latitude,
-        longitude: longitude ?? this.longitude,
-        distanceM: distanceM ?? this.distanceM,
-        gpsAccuracyM: gpsAccuracyM ?? this.gpsAccuracyM,
-        lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
-        isSelling: isSelling ?? this.isSelling,
-      );
+    String? profilePhotoUrl,
+  }) => MerchantRadarItem(
+    merchantId: merchantId,
+    businessName: businessName,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
+    distanceM: distanceM ?? this.distanceM,
+    gpsAccuracyM: gpsAccuracyM ?? this.gpsAccuracyM,
+    lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
+    isSelling: isSelling ?? this.isSelling,
+    profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
+  );
 }
 
 class MerchantProfile {
@@ -135,8 +139,8 @@ class MerchantRating {
   final int totalReviews;
 
   factory MerchantRating.fromJson(Map<String, dynamic> json) => MerchantRating(
-        merchantId: json['merchant_id'] as String,
-        averageRating: (json['average_rating'] as num).toDouble(),
-        totalReviews: json['total_reviews'] as int,
-      );
+    merchantId: json['merchant_id'] as String,
+    averageRating: (json['average_rating'] as num).toDouble(),
+    totalReviews: json['total_reviews'] as int,
+  );
 }

@@ -25,10 +25,10 @@ class MerchantService {
     required String businessName,
     String? description,
   }) async {
-    final res = await _api.put(Endpoints.merchantProfile, data: {
-      'business_name': businessName,
-      if (description != null) 'description': description,
-    });
+    final res = await _api.put(
+      Endpoints.merchantProfile,
+      data: {'business_name': businessName, 'description': description},
+    );
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
     return MerchantSelfProfile.fromJson(data);
   }
@@ -62,12 +62,15 @@ class MerchantService {
     required double accuracyM,
     required String recordedAt,
   }) async {
-    await _api.put(Endpoints.merchantLocation, data: {
-      'latitude': latitude,
-      'longitude': longitude,
-      'accuracy_m': accuracyM,
-      'recorded_at': recordedAt,
-    });
+    await _api.put(
+      Endpoints.merchantLocation,
+      data: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'accuracy_m': accuracyM,
+        'recorded_at': recordedAt,
+      },
+    );
   }
 
   // ── Public profile (buyer) ────────────────────────────────
@@ -94,16 +97,29 @@ class MerchantService {
 
   // ── Menu CRUD ─────────────────────────────────────────────
 
+  Future<List<MenuItem>> getSelfMenus() async {
+    final res = await _api.get(Endpoints.merchantMenus);
+    final list = (res.data as Map)['data'] as List;
+    return list
+        .map((e) => MenuItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<MenuItem> addMenu({
     required String name,
     String? description,
     required double price,
+    bool isAvailable = true,
   }) async {
-    final res = await _api.post(Endpoints.merchantMenus, data: {
-      'name': name,
-      if (description != null) 'description': description,
-      'price': price,
-    });
+    final res = await _api.post(
+      Endpoints.merchantMenus,
+      data: {
+        'name': name,
+        'description': description,
+        'price': price,
+        'is_available': isAvailable,
+      },
+    );
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
     return MenuItem.fromJson(data);
   }
@@ -115,12 +131,21 @@ class MerchantService {
     required double price,
     required bool isAvailable,
   }) async {
-    final res = await _api.put(Endpoints.merchantMenuById(menuId), data: {
-      'name': name,
-      if (description != null) 'description': description,
-      'price': price,
-      'is_available': isAvailable,
-    });
+    final res = await _api.put(
+      Endpoints.merchantMenuById(menuId),
+      data: {
+        'name': name,
+        'description': description,
+        'price': price,
+        'is_available': isAvailable,
+      },
+    );
+    final data = (res.data as Map)['data'] as Map<String, dynamic>;
+    return MenuItem.fromJson(data);
+  }
+
+  Future<MenuItem> toggleMenuAvailability(String menuId) async {
+    final res = await _api.patch(Endpoints.merchantMenuAvailability(menuId));
     final data = (res.data as Map)['data'] as Map<String, dynamic>;
     return MenuItem.fromJson(data);
   }

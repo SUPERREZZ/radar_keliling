@@ -4,10 +4,8 @@ class MenuPhoto {
   final String id;
   final String url;
 
-  factory MenuPhoto.fromJson(Map<String, dynamic> json) => MenuPhoto(
-        id: json['id'] as String,
-        url: json['url'] as String,
-      );
+  factory MenuPhoto.fromJson(Map<String, dynamic> json) =>
+      MenuPhoto(id: json['id'] as String, url: json['url'] as String);
 }
 
 class MenuItem {
@@ -30,14 +28,14 @@ class MenuItem {
   final List<MenuPhoto> photos;
 
   factory MenuItem.fromJson(Map<String, dynamic> json) => MenuItem(
-        id: json['id'] as String,
-        merchantId: json['merchant_id'] as String? ?? '',
-        name: json['name'] as String,
-        description: json['description'] as String?,
-        price: (json['price'] as num).toDouble(),
-        isAvailable: json['is_available'] as bool? ?? true,
-        photos: (json['photos'] as List<dynamic>? ?? [])
-            .map((p) => MenuPhoto.fromJson(p as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as String,
+    merchantId: json['merchant_id'] as String? ?? '',
+    name: json['name'] as String,
+    description: json['description'] as String?,
+    price: (json['price'] as num).toDouble(),
+    isAvailable: json['is_available'] as bool? ?? true,
+    photos: (json['photos'] as List<dynamic>? ?? [])
+        .map((p) => MenuPhoto.fromJson(p as Map<String, dynamic>))
+        .toList(),
+  );
 }
