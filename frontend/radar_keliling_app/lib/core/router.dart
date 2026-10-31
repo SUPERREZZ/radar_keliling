@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/providers/auth_provider.dart';
+import '../features/splash/splash_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/verify_email_screen.dart';
@@ -18,11 +19,17 @@ import '../features/admin/screens/admin_reports_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     refreshListenable: _RouterRefreshStream(ref),
     redirect: (context, state) {
       final authState = ref.read(authProvider);
-      
+      final location = state.matchedLocation;
+
+      // Always show splash screen first
+      if (location == '/splash') {
+        return null;
+      }
+
       // Always allow initial loading
       if (authState.isLoading && authState.valueOrNull == null) {
         debugPrint('[Router] Skipping redirect - initial loading');
@@ -31,7 +38,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final user = authState.valueOrNull;
       final isLoggedIn = user != null;
-      final location = state.matchedLocation;
       final isAuthRoute = location == '/login' ||
           location == '/register' ||
           location.startsWith('/verify');
@@ -60,6 +66,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (_, __) => const SplashScreen(),
+      ),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(
