@@ -125,8 +125,9 @@ class _SellingHomeScreenState extends ConsumerState<SellingHomeScreen>
       if (!mounted) return;
 
       final pending = calls.where((c) => c.status == 'pending').toList();
+      debugPrint('[SellingHome] Check calls: total=${calls.length}, pending=${pending.length}');
       final accepted = calls
-          .where((c) => c.status == 'accept' && c.hasBuyerCoordinates)
+          .where((c) => (c.status == 'accept' || c.status == 'accepted') && c.hasBuyerCoordinates)
           .toList();
 
       setState(() {
@@ -136,16 +137,26 @@ class _SellingHomeScreenState extends ConsumerState<SellingHomeScreen>
       if (pending.isNotEmpty) {
         _maybeShowIncomingCallDialog(pending.first);
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[SellingHome] Polling error: $e'); }
   }
 
   void _maybeShowIncomingCallDialog(CallModel call) {
-    if (!mounted || _dialogShowing || call.id.isEmpty) return;
+    debugPrint('[SellingHome] Evaluasi dialog panggilan: ${call.id}');
+    if (!mounted || _dialogShowing || call.id.isEmpty) {
+      debugPrint('[SellingHome] Lewati dialog: mounted=$mounted, dialogShowing=$_dialogShowing');
+      return;
+    }
     final route = ModalRoute.of(context);
-    if (route != null && !route.isCurrent) return;
+    if (route != null && !route.isCurrent) {
+      debugPrint('[SellingHome] Lewati dialog: route bukan yang teratas');
+      return;
+    }
 
     final handled = ref.read(handledIncomingCallIdsProvider);
-    if (handled.contains(call.id)) return;
+    if (handled.contains(call.id)) {
+      debugPrint('[SellingHome] Lewati dialog: panggilan ${call.id} sudah pernah ditampilkan');
+      return;
+    }
 
     ref.read(handledIncomingCallIdsProvider.notifier).state = {
       ...handled,
