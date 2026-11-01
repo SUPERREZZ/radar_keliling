@@ -9,6 +9,7 @@ import '../../../config/app_config.dart';
 import '../../../core/models/call_model.dart';
 import '../../../core/models/merchant_model.dart';
 import '../../../core/services/call_service.dart';
+import '../../../core/services/fcm_service.dart';
 import '../../../core/services/websocket_service.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/merchant_profile/providers/merchant_profile_provider.dart';
@@ -246,6 +247,15 @@ class _SellingHomeScreenState extends ConsumerState<SellingHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<Map<String, dynamic>>>(
+      incomingCallFcmStreamProvider,
+      (_, next) {
+        next.whenData((_) {
+          _checkPendingAndActiveCalls();
+        });
+      },
+    );
+
     final user = ref.watch(authProvider).valueOrNull;
     final profileAsync = ref.watch(merchantSelfProfileProvider);
     final menusAsync = ref.watch(merchantSelfMenusProvider);

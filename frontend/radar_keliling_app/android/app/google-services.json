@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "931100895415",
+    "project_id": "radarkeliling-3d57f",
+    "storage_bucket": "radarkeliling-3d57f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:931100895415:android:b0095e11150d5fc9cb0532",
+        "android_client_info": {
+          "package_name": "com.example.radar_keliling"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvuwgEExIVN0o3CpR17uo3QiQC-S5DJeQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:931100895415:android:27f4faff8397bbdccb0532",
+        "android_client_info": {
+          "package_name": "com.radarkeliling.radar_keliling"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvuwgEExIVN0o3CpR17uo3QiQC-S5DJeQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
