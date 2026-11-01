@@ -41,13 +41,13 @@ class AppConfig {
 
   // ── WebSocket (Laravel Reverb) ────────────────────────────
   /// Host Reverb — dari Jelastic Endpoint Access URL.
-  static const String wsHost = 'node37310-backend.jh-beon.cloud';
+  static const String wsHost = 'backend.jh-beon.cloud';
 
   /// Key Reverb — harus sama persis dengan nilai di .env backend.
   static const String reverbAppKey = 'radarkelilingkey';
 
   /// Port Reverb (Public Port dari Jelastic Endpoint).
-  static const int wsPort = 11046;
+  static const int wsPort = 80;
 
   /// Gunakan TLS (wss://) di production.
   static const bool wsTls = false;
