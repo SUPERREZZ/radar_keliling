@@ -44,7 +44,7 @@ class AppConfig {
   static const String wsHost = 'backend.jh-beon.cloud';
 
   /// Key Reverb — harus sama persis dengan nilai di .env backend.
-  static const String reverbAppKey = 'YOUR_REVERB_APP_KEY';
+  static const String reverbAppKey = 'radarkelilingkey';
 
   /// Port Reverb (default: 6001 untuk non-TLS, 443 untuk TLS).
   static const int wsPort = 80;
