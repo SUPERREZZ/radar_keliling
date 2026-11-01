@@ -155,16 +155,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              width: 52,
-                              height: 52,
+                              width: 56,
+                              height: 56,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.18),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.radar_rounded,
                                 color: Colors.white,
-                                size: 28,
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.14),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                fit: BoxFit.cover,
                               ),
                             ),
                             const SizedBox(height: 16),

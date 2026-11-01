@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/models/call_model.dart';
 import '../../../core/services/call_service.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final _callHistoryProvider = FutureProvider<List<CallModel>>((ref) {
   return ref.read(callServiceProvider).getCalls();
@@ -15,6 +16,8 @@ class CallHistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final callsAsync = ref.watch(_callHistoryProvider);
+    final user = ref.watch(authProvider).valueOrNull;
+    final isMerchant = user?.isMerchant ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -64,7 +67,10 @@ class CallHistoryScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             itemCount: calls.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _CallCard(call: calls[i]),
+            itemBuilder: (_, i) => _CallCard(
+              call: calls[i],
+              isMerchant: isMerchant,
+            ),
           );
         },
       ),
@@ -73,11 +79,12 @@ class CallHistoryScreen extends ConsumerWidget {
 }
 
 class _CallCard extends StatelessWidget {
-  const _CallCard({required this.call});
+  const _CallCard({required this.call, required this.isMerchant});
   final CallModel call;
+  final bool isMerchant;
 
   Color get _statusColor => switch (call.status) {
-    'accept' => AppColors.success,
+    'accept' || 'completed' => AppColors.success,
     'unanswered' => AppColors.warning,
     'cancelled' => AppColors.textHint,
     'expired' => AppColors.textHint,
@@ -86,11 +93,22 @@ class _CallCard extends StatelessWidget {
 
   String get _statusLabel => switch (call.status) {
     'accept' => 'Diterima',
+    'completed' => 'Selesai',
     'unanswered' => 'Tidak Dijawab',
     'cancelled' => 'Dibatalkan',
     'expired' => 'Kedaluwarsa',
     _ => 'Menunggu',
   };
+
+  String get _title {
+    if (isMerchant) {
+      final shortId = call.id.length >= 6
+          ? call.id.substring(0, 6).toUpperCase()
+          : call.id.toUpperCase();
+      return 'Panggilan Pembeli #$shortId';
+    }
+    return 'Panggilan ke pedagang';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +143,7 @@ class _CallCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Panggilan ke pedagang',
+                    _title,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -164,7 +182,7 @@ class _CallCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (call.canReview) ...[
+                if (!isMerchant && call.canReview) ...[
                   const SizedBox(height: 4),
                   GestureDetector(
                     onTap: () => context.push('/calls/${call.id}/review'),

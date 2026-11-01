@@ -261,7 +261,11 @@ class _SellingHomeScreenState extends ConsumerState<SellingHomeScreen>
     ref.listen<AsyncValue<Map<String, dynamic>>>(
       incomingCallFcmStreamProvider,
       (_, next) {
-        next.whenData((_) {
+        next.whenData((data) {
+          final callId = data['call_id']?.toString() ?? '';
+          if (callId.isNotEmpty) {
+            _maybeShowIncomingCallDialog(CallModel.fromJson(data));
+          }
           _checkPendingAndActiveCalls();
         });
       },

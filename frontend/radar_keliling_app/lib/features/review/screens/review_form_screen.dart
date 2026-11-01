@@ -1,3 +1,4 @@
+import '../../auth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -84,6 +85,26 @@ class _ReviewFormScreenState extends ConsumerState<ReviewFormScreen>
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).valueOrNull;
+    if (user != null && user.isMerchant) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Beri Ulasan'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        body: const Center(
+          child: Text(
+            'Hanya pembeli yang dapat memberikan ulasan.',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(

@@ -136,23 +136,33 @@ class _CallButtonState extends ConsumerState<CallButton> {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),
       opacity: _inRange ? 1.0 : 0.4,
-      child: ElevatedButton.icon(
-        onPressed: _loading ? null : _handleCall,
-        icon: _loading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.campaign_outlined, size: 18),
-        label: const Text('Panggil'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 46,
+        child: ElevatedButton.icon(
+          onPressed: _loading ? null : _handleCall,
+          icon: _loading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.campaign_outlined, size: 18),
+          label: const Text(
+            'Panggil',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
       ),

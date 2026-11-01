@@ -115,10 +115,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.radar_rounded,
-                          size: 62,
-                          color: AppColors.primary,
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),

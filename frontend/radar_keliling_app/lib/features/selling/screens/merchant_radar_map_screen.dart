@@ -1,3 +1,4 @@
+import '../../../core/services/fcm_service.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -183,6 +184,20 @@ class _MerchantRadarMapScreenState
     final selectedRadius = ref.watch(merchantRadarRadiusProvider);
     final sellingState = ref.watch(sellingProvider);
     final isSelling = sellingState.valueOrNull ?? false;
+
+    // Listener notifikasi panggilan masuk real-time via FCM
+    ref.listen<AsyncValue<Map<String, dynamic>>>(
+      incomingCallFcmStreamProvider,
+      (_, next) {
+        next.whenData((data) {
+          ref.invalidate(merchantRadarSnapshotProvider);
+          final callId = data['call_id']?.toString() ?? '';
+          if (callId.isNotEmpty) {
+            _maybeShowIncomingCallDialog(CallModel.fromJson(data));
+          }
+        });
+      },
+    );
 
     // Jika ada panggilan pending baru dari hasil fetch, tampilkan dialog otomatis
     ref.listen<AsyncValue<MerchantRadarSnapshot>>(
