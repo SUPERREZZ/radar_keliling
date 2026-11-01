@@ -139,6 +139,9 @@ class CallController extends Controller
                     'type' => 'incoming_call',
                     'call_id' => (string) $call->id,
                     'merchant_id' => (string) $merchant->id,
+                    'buyer_latitude' => $validated['share_location'] ? (string) $bLat : '',
+                    'buyer_longitude' => $validated['share_location'] ? (string) $bLng : '',
+                    'location_shared' => $validated['share_location'] ? '1' : '0',
                     'distance_m' => (string) $distanceM,
                 ]
             );
@@ -378,6 +381,20 @@ class CallController extends Controller
             broadcast(new CallStatusUpdated($call->id, Call::STATUS_CANCELLED, $call->merchant_id));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Reverb broadcast failed on cancel: '.$e->getMessage());
+        }
+
+        $merchant = MerchantProfile::find($call->merchant_id);
+        if ($merchant?->user_id) {
+            $this->fcmService->sendToUser(
+                userId: (string) $merchant->user_id,
+                title: 'Panggilan Dibatalkan',
+                body: 'Pembeli telah membatalkan panggilan.',
+                data: [
+                    'type' => 'call_status_updated',
+                    'call_id' => (string) $call->id,
+                    'status' => Call::STATUS_CANCELLED,
+                ]
+            );
         }
 
         return (new CallResource($call))->response()->setStatusCode(200);
