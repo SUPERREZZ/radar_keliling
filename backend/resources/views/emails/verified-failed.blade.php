@@ -109,6 +109,9 @@
 <body>
     <div class="card">
         <div class="header">
+            <div style="margin-bottom: 14px;">
+                <img src="{{ asset('images/logo.png') }}" width="64" height="64" alt="Radar Keliling" style="border-radius: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.2); border: 2px solid rgba(255,255,255,0.4);">
+            </div>
             <div class="icon-circle">
                 <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />

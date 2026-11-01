@@ -151,8 +151,15 @@
                     <div class="container">
                         <!-- Header -->
                         <div class="header">
+                            <div style="margin-bottom: 12px;">
+                                @if(isset($message) && file_exists(public_path('images/logo.png')))
+                                    <img src="{{ $message->embed(public_path('images/logo.png')) }}" width="68" height="68" alt="Radar Keliling" style="border-radius: 18px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.22); border: 2px solid rgba(255,255,255,0.4);">
+                                @else
+                                    <img src="{{ asset('images/logo.png') }}" width="68" height="68" alt="Radar Keliling" style="border-radius: 18px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.22); border: 2px solid rgba(255,255,255,0.4);">
+                                @endif
+                            </div>
                             <div class="header-logo">
-                                🛰️ Radar Keliling
+                                Radar Keliling
                             </div>
                             <br>
                             <span class="header-badge">VERIFIKASI AKUN</span>
