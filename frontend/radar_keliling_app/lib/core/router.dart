@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import 'models/call_model.dart';
 import 'models/user_model.dart';
+import '../features/admin/screens/admin_reports_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
-import '../features/splash/splash_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/verify_email_screen.dart';
-import '../features/radar/screens/buyer_shell.dart';
-import '../features/merchant_profile/screens/merchant_profile_screen.dart';
-import '../features/merchant_profile/screens/edit_profile_screen.dart';
-import '../features/merchant_profile/screens/merchant_menu_screen.dart';
-import '../features/merchant_profile/screens/menu_list_screen.dart';
-import '../features/selling/screens/selling_home_screen.dart';
-import '../features/call/screens/call_history_screen.dart';
 import '../features/call/screens/call_detail_screen.dart';
+import '../features/call/screens/call_history_screen.dart';
+import '../features/merchant_profile/screens/edit_profile_screen.dart';
+import '../features/merchant_profile/screens/menu_list_screen.dart';
+import '../features/merchant_profile/screens/merchant_menu_screen.dart';
+import '../features/merchant_profile/screens/merchant_profile_screen.dart';
+import '../features/radar/screens/buyer_shell.dart';
 import '../features/review/screens/review_form_screen.dart';
-import '../features/admin/screens/admin_reports_screen.dart';
+import '../features/selling/screens/merchant_navigation_screen.dart';
+import '../features/selling/screens/merchant_radar_map_screen.dart';
+import '../features/selling/screens/selling_home_screen.dart';
+import '../features/splash/splash_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _RouterRefreshStream(ref);
@@ -104,6 +108,30 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // Merchant routes
       GoRoute(path: '/selling', builder: (_, __) => const SellingHomeScreen()),
+      GoRoute(
+        path: '/selling/map',
+        builder: (_, __) => const MerchantRadarMapScreen(),
+      ),
+      GoRoute(
+        path: '/selling/navigation',
+        builder: (_, state) {
+          final extra = state.extra;
+          if (extra is CallModel) {
+            return MerchantNavigationScreen(call: extra);
+          }
+          return MerchantNavigationScreen(
+            call: CallModel(
+              id: state.uri.queryParameters['callId'] ?? '',
+              buyerId: '',
+              merchantId: '',
+              status: 'accept',
+              locationConsent: true,
+              createdAt: DateTime.now().toIso8601String(),
+              hasReview: false,
+            ),
+          );
+        },
+      ),
       GoRoute(
         path: '/profile/edit',
         builder: (_, __) => const EditProfileScreen(),

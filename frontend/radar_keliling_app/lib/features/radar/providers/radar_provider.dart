@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+
 import '../../../core/models/merchant_model.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/services/merchant_service.dart';
 import '../../../core/services/radar_service.dart';
-import '../../../core/services/location_service.dart';
 import '../../../core/services/websocket_service.dart';
 
 final radarProvider =
@@ -39,7 +41,9 @@ class RadarNotifier extends StateNotifier<AsyncValue<List<MerchantRadarItem>>> {
     if (!keepExisting) state = const AsyncValue.loading();
 
     try {
-      final loc = await _locationService.getCurrentLocation();
+      final loc =
+          _locationService.lastKnownLocation ??
+          await _locationService.getCurrentLocation();
       final latitude = loc?.latitude ?? _lastLat;
       final longitude = loc?.longitude ?? _lastLng;
 
@@ -72,6 +76,28 @@ class RadarNotifier extends StateNotifier<AsyncValue<List<MerchantRadarItem>>> {
       }
       return false;
     }
+  }
+
+  /// Update koordinat buyer dari stream GPS secara ringan & hitung ulang jarak.
+  void updateBuyerCoordinates(double latitude, double longitude) {
+    _lastLat = latitude;
+    _lastLng = longitude;
+    final current = state.valueOrNull;
+    if (current == null || current.isEmpty) return;
+
+    final updated = current
+        .map(
+          (m) => m.copyWith(
+            distanceM: Geolocator.distanceBetween(
+              latitude,
+              longitude,
+              m.latitude,
+              m.longitude,
+            ),
+          ),
+        )
+        .toList(growable: false);
+    state = AsyncValue.data(updated);
   }
 
   /// Dipanggil setelah WS reconnect — sync ulang dari REST.
@@ -113,42 +139,68 @@ class RadarNotifier extends StateNotifier<AsyncValue<List<MerchantRadarItem>>> {
     }
   }
 
+  double _computeDistance(double mLat, double mLng) {
+    if (_lastLat == null || _lastLng == null) return 0;
+    return Geolocator.distanceBetween(_lastLat!, _lastLng!, mLat, mLng);
+  }
+
   /// Update marker dari WebSocket event MerchantLocationUpdated.
   void updateMerchantLocation(Map<String, dynamic> data) {
-    final merchants = List<MerchantRadarItem>.from(state.valueOrNull ?? []);
-    final id = data['merchant_id'] as String?;
+    final id = (data['merchant_id'] ?? data['merchantId']) as String?;
     if (id == null) return;
+
+    final isSelling =
+        (data['is_selling'] ?? data['isSelling']) as bool? ?? true;
+    final merchants = List<MerchantRadarItem>.from(state.valueOrNull ?? []);
+
+    // Jika pedagang berhenti jualan di event update lokasi, segera hapus marker
+    if (!isSelling) {
+      merchants.removeWhere((m) => m.merchantId == id);
+      state = AsyncValue.data(merchants);
+      return;
+    }
+
+    final mLat = (data['latitude'] as num).toDouble();
+    final mLng = (data['longitude'] as num).toDouble();
+    final dist = _computeDistance(mLat, mLng);
+
     final idx = merchants.indexWhere((m) => m.merchantId == id);
     if (idx == -1) {
-      // Pedagang baru masuk area radar
-      merchants.add(
-        MerchantRadarItem(
-          merchantId: id,
-          businessName: data['business_name'] as String? ?? '',
-          latitude: (data['latitude'] as num).toDouble(),
-          longitude: (data['longitude'] as num).toDouble(),
-          distanceM: 0,
-          gpsAccuracyM: (data['gps_accuracy_m'] as num?)?.toDouble() ?? 0,
-          lastUpdatedAt: data['last_updated_at'] as String? ?? '',
-          isSelling: data['is_selling'] as bool? ?? true,
-        ),
+      final added = MerchantRadarItem(
+        merchantId: id,
+        businessName: data['business_name'] as String? ?? 'Pedagang Keliling',
+        latitude: mLat,
+        longitude: mLng,
+        distanceM: dist,
+        gpsAccuracyM: (data['gps_accuracy_m'] as num?)?.toDouble() ?? 0,
+        lastUpdatedAt:
+            data['last_updated_at'] as String? ??
+            DateTime.now().toUtc().toIso8601String(),
+        isSelling: true,
       );
+      merchants.add(added);
+      state = AsyncValue.data(merchants);
+      unawaited(_enrichProfiles([added]));
     } else {
       merchants[idx] = merchants[idx].copyWith(
-        latitude: (data['latitude'] as num).toDouble(),
-        longitude: (data['longitude'] as num).toDouble(),
+        latitude: mLat,
+        longitude: mLng,
+        distanceM: dist > 0 ? dist : merchants[idx].distanceM,
         gpsAccuracyM: (data['gps_accuracy_m'] as num?)?.toDouble(),
-        lastUpdatedAt: data['last_updated_at'] as String?,
-        isSelling: data['is_selling'] as bool?,
+        lastUpdatedAt:
+            data['last_updated_at'] as String? ??
+            DateTime.now().toUtc().toIso8601String(),
+        isSelling: true,
       );
+      state = AsyncValue.data(merchants);
     }
-    state = AsyncValue.data(merchants);
   }
 
   /// Update / hapus marker dari event MerchantSellingStatusChanged.
   void updateMerchantSellingStatus(Map<String, dynamic> data) {
-    final id = data['merchant_id'] as String?;
-    final isSelling = data['is_selling'] as bool? ?? false;
+    final id = (data['merchant_id'] ?? data['merchantId']) as String?;
+    final isSelling =
+        (data['is_selling'] ?? data['isSelling']) as bool? ?? false;
     if (id == null) return;
 
     final merchants = List<MerchantRadarItem>.from(state.valueOrNull ?? []);

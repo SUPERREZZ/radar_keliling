@@ -31,14 +31,20 @@ class Endpoints {
   static String merchantPublicProfile(String id) => '/v1/merchants/$id';
   static String merchantMenusPublic(String id) => '/v1/merchants/$id/menus';
   static String merchantRating(String id) => '/v1/merchants/$id/rating';
+  static String merchantReviews(String id) => '/v1/merchants/$id/reviews';
 
   // Radar (all start with /v1)
   static const String radarMerchants = '/v1/radar/merchants';
+  static const String heatmap = '/v1/heatmap';
+  static const String merchantBuyerHotspots =
+      '/v1/merchant/radar/buyer-hotspots';
 
   // Calls (all start with /v1)
   static const String calls = '/v1/calls';
+  static const String merchantCalls = '/v1/merchant/calls';
   static String callById(String id) => '/v1/calls/$id';
   static String callAnswer(String id) => '/v1/calls/$id/accept';
+  static String callComplete(String id) => '/v1/calls/$id/complete';
   static String callUnanswered(String id) => '/v1/calls/$id/unanswered';
   static String callCancel(String id) => '/v1/calls/$id/cancel';
 

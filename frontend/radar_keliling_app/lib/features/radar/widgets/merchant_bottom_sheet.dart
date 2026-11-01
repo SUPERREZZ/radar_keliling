@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../config/app_config.dart';
 import '../../../core/models/merchant_model.dart';
 import '../../../shared/theme/app_theme.dart';
@@ -118,7 +119,7 @@ class MerchantBottomSheet extends ConsumerWidget {
                           const SizedBox(width: 8),
                           const Icon(
                             Icons.star_rounded,
-                            size: 13,
+                            size: 14,
                             color: AppColors.warning,
                           ),
                           const SizedBox(width: 2),
@@ -126,7 +127,15 @@ class MerchantBottomSheet extends ConsumerWidget {
                             profile.averageRating.toStringAsFixed(1),
                             style: const TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '(${profile.totalReviews} ulasan)',
+                            style: const TextStyle(
+                              fontSize: 11,
                               color: AppColors.textSecondary,
                             ),
                           ),
@@ -166,7 +175,7 @@ class MerchantBottomSheet extends ConsumerWidget {
                     context.push('/merchant/${merchant.merchantId}');
                   },
                   icon: const Icon(Icons.info_outline, size: 17),
-                  label: const Text('Lihat Profil'),
+                  label: const Text('Lihat Profil & Ulasan'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),

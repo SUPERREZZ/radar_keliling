@@ -1,3 +1,5 @@
+import '../../config/app_config.dart';
+
 class MerchantRadarItem {
   const MerchantRadarItem({
     required this.merchantId,
@@ -21,11 +23,12 @@ class MerchantRadarItem {
   final bool isSelling;
   final String? profilePhotoUrl;
 
-  /// True jika lokasi masih segar (< 30 detik).
+  /// True jika lokasi masih segar sesuai ambang batas di AppConfig.
   bool get isLocationFresh {
     try {
       final updated = DateTime.parse(lastUpdatedAt);
-      return DateTime.now().toUtc().difference(updated).inSeconds <= 30;
+      return DateTime.now().toUtc().difference(updated).inSeconds <=
+          AppConfig.locationStaleThresholdSeconds;
     } catch (_) {
       return false;
     }

@@ -1,6 +1,9 @@
 import 'dart:async';
-import 'package:geolocator/geolocator.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+
 import '../../config/app_config.dart';
 
 final locationServiceProvider = Provider<LocationService>(
@@ -14,21 +17,34 @@ class LocationResult {
     required this.accuracyM,
     required this.recordedAt,
   });
+
   final double latitude;
   final double longitude;
   final double accuracyM;
   final String recordedAt;
+
+  LocationResult withFreshTimestamp() => LocationResult(
+    latitude: latitude,
+    longitude: longitude,
+    accuracyM: accuracyM,
+    recordedAt: DateTime.now().toUtc().toIso8601String(),
+  );
 }
 
 class LocationService {
-  Timer? _gpsTimer;
+  StreamSubscription<Position>? _positionSub;
+  Timer? _heartbeatTimer;
+  LocationResult? _lastKnownLocation;
+  DateTime? _lastEmitTime;
+
   final StreamController<LocationResult> _locationStream =
       StreamController.broadcast();
 
   Stream<LocationResult> get locationStream => _locationStream.stream;
+  LocationResult? get lastKnownLocation => _lastKnownLocation;
 
   Future<bool> requestPermission() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return false;
 
     LocationPermission permission = await Geolocator.checkPermission();
@@ -44,13 +60,46 @@ class LocationService {
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
+          timeLimit: Duration(seconds: 6),
         ),
       );
-      return _posToResult(pos);
+      final res = _posToResult(pos);
+      _lastKnownLocation = res;
+      return res;
     } catch (_) {
-      return null;
+      try {
+        final lastPos = await Geolocator.getLastKnownPosition();
+        if (lastPos != null) {
+          final res = _posToResult(lastPos);
+          _lastKnownLocation = res;
+          return res;
+        }
+      } catch (_) {}
+      return _lastKnownLocation?.withFreshTimestamp();
     }
+  }
+
+  /// Stream posisi buyer yang ringan untuk update marker & radar secara mulus.
+  Stream<LocationResult> watchPosition({int distanceFilter = 5}) {
+    final LocationSettings settings;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      settings = AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: distanceFilter,
+        intervalDuration: const Duration(seconds: 5),
+      );
+    } else {
+      settings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: distanceFilter,
+      );
+    }
+
+    return Geolocator.getPositionStream(locationSettings: settings).map((pos) {
+      final res = _posToResult(pos);
+      _lastKnownLocation = res;
+      return res;
+    });
   }
 
   /// Cek akurasi GPS memenuhi syarat panggilan (≤ 50m).
@@ -59,41 +108,95 @@ class LocationService {
     if (loc != null && loc.accuracyM <= AppConfig.callGpsAccuracyMaxMeters) {
       return loc;
     }
-    // Retry sekali dengan timeout lebih longgar
+
     try {
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.best,
-          timeLimit: Duration(seconds: 15),
+          timeLimit: Duration(seconds: 10),
         ),
       );
       loc = _posToResult(pos);
+      _lastKnownLocation = loc;
       return loc.accuracyM <= AppConfig.callGpsAccuracyMaxMeters ? loc : null;
     } catch (_) {
-      return null;
+      return loc;
     }
   }
 
-  /// Mulai timer GPS untuk merchant — kirim segera lalu setiap 10 detik.
-  void startGpsUpdates() {
-    _gpsTimer?.cancel();
-    _emitCurrentLocation();
-    _gpsTimer = Timer.periodic(
-      Duration(seconds: AppConfig.gpsUpdateIntervalSeconds),
-      (_) => _emitCurrentLocation(),
+  /// Mulai GPS stream berkelanjutan untuk merchant + heartbeat saat berhenti.
+  Future<bool> startGpsUpdates() async {
+    stopGpsUpdates();
+
+    final hasPermission = await requestPermission();
+    if (!hasPermission) return false;
+
+    final initialLoc = await getCurrentLocation();
+    if (initialLoc != null) {
+      _emitLocation(initialLoc);
+    }
+
+    final LocationSettings locationSettings;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      locationSettings = AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 3,
+        intervalDuration: Duration(seconds: AppConfig.gpsUpdateIntervalSeconds),
+      );
+    } else {
+      locationSettings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 3,
+      );
+    }
+
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen(
+      (pos) {
+        _emitLocation(_posToResult(pos));
+      },
+      onError: (_) {
+        // Abaikan error transien agar stream tetap berjalan
+      },
     );
+
+    // Heartbeat ringan: jika gerobak berhenti (0m) selama > interval,
+    // tetap kirim koordinat terakhir agar status di radar tidak dianggap stale.
+    _heartbeatTimer = Timer.periodic(
+      Duration(seconds: AppConfig.gpsUpdateIntervalSeconds),
+      (_) async {
+        final now = DateTime.now();
+        if (_lastEmitTime != null &&
+            now.difference(_lastEmitTime!).inSeconds <
+                AppConfig.gpsUpdateIntervalSeconds - 1) {
+          return;
+        }
+        final loc =
+            _lastKnownLocation?.withFreshTimestamp() ??
+            await getCurrentLocation();
+        if (loc != null) {
+          _emitLocation(loc);
+        }
+      },
+    );
+
+    return true;
   }
 
-  Future<void> _emitCurrentLocation() async {
-    final loc = await getCurrentLocation();
-    if (loc != null && !_locationStream.isClosed) {
+  void _emitLocation(LocationResult loc) {
+    _lastKnownLocation = loc;
+    _lastEmitTime = DateTime.now();
+    if (!_locationStream.isClosed) {
       _locationStream.add(loc);
     }
   }
 
   void stopGpsUpdates() {
-    _gpsTimer?.cancel();
-    _gpsTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _positionSub?.cancel();
+    _positionSub = null;
   }
 
   LocationResult _posToResult(Position pos) => LocationResult(
@@ -104,7 +207,7 @@ class LocationService {
   );
 
   void dispose() {
-    _gpsTimer?.cancel();
+    stopGpsUpdates();
     _locationStream.close();
   }
 }

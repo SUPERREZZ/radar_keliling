@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/models/call_model.dart';
 import '../../../core/services/call_service.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/rk_button.dart';
 import '../../../shared/widgets/rk_snackbar.dart';
+import '../../auth/providers/auth_provider.dart';
 
-final _callDetailProvider = FutureProvider.family<CallModel, String>((
-  ref,
-  callId,
-) {
-  return ref.read(callServiceProvider).getCallById(callId);
-});
+final _callDetailProvider = FutureProvider.autoDispose.family<CallModel, String>(
+  (ref, callId) {
+    return ref.read(callServiceProvider).getCallById(callId);
+  },
+);
 
 class CallDetailScreen extends ConsumerWidget {
   const CallDetailScreen({super.key, required this.callId});
@@ -53,6 +54,7 @@ class _CallDetailContent extends ConsumerStatefulWidget {
 class _CallDetailContentState extends ConsumerState<_CallDetailContent>
     with SingleTickerProviderStateMixin {
   bool _cancelling = false;
+  bool _accepting = false;
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
@@ -74,7 +76,7 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
   }
 
   Color get _statusColor => switch (widget.call.status) {
-    'accept' => AppColors.success,
+    'accept' || 'completed' => AppColors.success,
     'unanswered' => AppColors.warning,
     'cancelled' || 'expired' => AppColors.textHint,
     _ => AppColors.primary,
@@ -82,6 +84,7 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
 
   String get _statusLabel => switch (widget.call.status) {
     'accept' => 'Diterima',
+    'completed' => 'Selesai Dilayani',
     'unanswered' => 'Tidak Dijawab',
     'cancelled' => 'Dibatalkan',
     'expired' => 'Kedaluwarsa',
@@ -89,7 +92,7 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
   };
 
   IconData get _statusIcon => switch (widget.call.status) {
-    'accept' => Icons.check_circle_outline,
+    'accept' || 'completed' => Icons.check_circle_outline,
     'unanswered' => Icons.do_not_disturb_alt_outlined,
     'cancelled' => Icons.cancel_outlined,
     'expired' => Icons.hourglass_disabled_outlined,
@@ -111,9 +114,47 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
     }
   }
 
+  Future<void> _acceptAndNavigate() async {
+    setState(() => _accepting = true);
+    try {
+      final accepted = await ref
+          .read(callServiceProvider)
+          .acceptCall(widget.call.id);
+      final merged = accepted.copyWith(
+        buyerLatitude: accepted.buyerLatitude ?? widget.call.buyerLatitude,
+        buyerLongitude: accepted.buyerLongitude ?? widget.call.buyerLongitude,
+        distanceM: accepted.distanceM ?? widget.call.distanceM,
+      );
+      if (!mounted) return;
+      context.pushReplacement('/selling/navigation', extra: merged);
+    } catch (_) {
+      if (!mounted) return;
+      showRkSnackbar(context, 'Gagal menerima panggilan.', isError: true);
+    } finally {
+      if (mounted) setState(() => _accepting = false);
+    }
+  }
+
+  Future<void> _rejectCall() async {
+    setState(() => _cancelling = true);
+    try {
+      await ref.read(callServiceProvider).markUnanswered(widget.call.id);
+      if (!mounted) return;
+      showRkSnackbar(context, 'Panggilan ditolak.');
+      context.pop();
+    } catch (_) {
+      if (!mounted) return;
+      showRkSnackbar(context, 'Gagal menolak panggilan.', isError: true);
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final call = widget.call;
+    final user = ref.watch(authProvider).valueOrNull;
+    final isMerchant = user?.isMerchant ?? false;
 
     return FadeTransition(
       opacity: _fadeAnim,
@@ -172,18 +213,55 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
                   label: 'Lokasi dibagikan',
                   value: call.locationConsent ? 'Ya' : 'Tidak',
                 ),
+                if (call.distanceM != null)
+                  _InfoRow(
+                    icon: Icons.straighten_rounded,
+                    label: 'Jarak ke Pembeli',
+                    value: '${call.distanceM!.toStringAsFixed(0)} m',
+                  ),
                 _InfoRow(
                   icon: Icons.fingerprint,
                   label: 'ID Panggilan',
-                  value: call.id.substring(0, 8).toUpperCase(),
+                  value: call.id.length >= 8
+                      ? call.id.substring(0, 8).toUpperCase()
+                      : call.id.toUpperCase(),
                 ),
               ],
             ),
 
             const SizedBox(height: 20),
 
-            // ── Aksi ─────────────────────────────────────
-            if (call.isPending)
+            // ── Aksi Pedagang ─────────────────────────────
+            if (isMerchant && call.isPending) ...[
+              RkButton(
+                label: 'Terima & Navigasi ke Pembeli',
+                onPressed: _acceptAndNavigate,
+                isLoading: _accepting,
+                color: AppColors.primary,
+                icon: Icons.navigation_rounded,
+              ),
+              const SizedBox(height: 10),
+              RkButton(
+                label: 'Tolak Panggilan',
+                onPressed: _rejectCall,
+                isLoading: _cancelling,
+                color: AppColors.error,
+                icon: Icons.close_rounded,
+              ),
+            ],
+
+            if (isMerchant && call.status == 'accept') ...[
+              RkButton(
+                label: 'Buka Navigasi ke Lokasi Pembeli',
+                onPressed: () =>
+                    context.push('/selling/navigation', extra: call),
+                color: AppColors.primary,
+                icon: Icons.navigation_rounded,
+              ),
+            ],
+
+            // ── Aksi Pembeli ──────────────────────────────
+            if (!isMerchant && call.isPending)
               RkButton(
                 label: 'Batalkan Panggilan',
                 onPressed: _cancel,
@@ -192,7 +270,7 @@ class _CallDetailContentState extends ConsumerState<_CallDetailContent>
                 icon: Icons.cancel_outlined,
               ),
 
-            if (call.canReview) ...[
+            if (!isMerchant && call.canReview) ...[
               RkButton(
                 label: 'Beri Ulasan',
                 onPressed: () => context.push('/calls/${call.id}/review'),
